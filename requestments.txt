@@ -1,0 +1,18 @@
+I'll build a "TinyNotes" application that will allow users to:
+- authenticate
+- create & manage (view, edit, delete) notes
+- share notes publicly => create a public "share" link which can also be disabled by the creator
+- unauthenticated users can view shared notes via that link
+
+A "note" is a formatted piece of text (= rich text) stored as JSON and rendered as HTML.
+
+It'll be a Bun + TypeScript + Next.js project, using TailwindCSS for styling.
+For rich text editing, the TipTap library & editor will be used.
+For authentication via email + password (simple setup: no password resets, no email confirmation, no email sending).
+
+Data will be stored in a SQLite database, using Bun's built-in SQLite client.
+No files will be stored (=> no image upload or embedding in the notes).
+
+We'll use raw SQL (no library) statements and a custom migrations script. For the database schema, we'll build our own, though for user/auth-related schemas, we have to use the ones specified by better-auth.
+
+This is a demo app and deliberately kept simple to some extent.
