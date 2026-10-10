@@ -1,0 +1,26 @@
+# TinyNotes – agent progress log
+
+## 2026-10-10 – M0-deps (passes)
+
+What changed:
+- package.json: every §4 package pinned exactly (no ^/~), "packageManager": "bun@1.3.12",
+  scripts dev/build/start = `bun --bun next dev|build|start` (no db:migrate yet, M1-db-cli adds it),
+  lint/typecheck/test/format as §4. tailwindcss + @tailwindcss/postcss moved to dependencies (§4 doesn't
+  mark them dev). Package name changed from the scaffold's "claude-code" to "tinynotes".
+- .prettierrc.json: prettier-plugin-tailwindcss with tailwindStylesheet ./app/globals.css (needed for Tailwind v4).
+- .prettierignore: `*.md` and `.claude/` (D46).
+- `bun run format` reformatted app/page.tsx (class sorting works), next.config.ts and prd.json.
+- bun.lock regenerated.
+
+Verified: bun install --frozen-lockfile, no ^/~ in package.json, `bun run format && bunx prettier --check .`,
+SPEC.md and .claude/settings.json report "ignored": true, `bun run lint` and `bun run typecheck` exit 0.
+`bun test` prints "0 test files" (expected in M0).
+
+!! Finding for M0-spike-sqlite (R1): `bun run build` (= `bun --bun next build`) FAILS on the bare scaffold
+   with Next 16.4.0 + Bun 1.3.12 on Windows, during "Collecting page data" for /_not-found:
+     Failed to load external module next/dist/compiled/next-server/app-page-turbo.runtime.prod.js:
+     TypeError: Expected CommonJS module to have a function wrapper. ... this is a bug in Bun
+   - Same error with `bun --bun next build --webpack` (webpack fallback does not help).
+   - `bunx next build` (Node 22.16.0 runtime) builds the same scaffold fine.
+   - Not tried yet: `bun --bun next dev`, serverExternalPackages, R6 (pin next/eslint-config-next 16.3.8).
+   M0-deps' acceptance/verify don't include build, so this is left to M0-spike-sqlite, which owns R1.
