@@ -104,3 +104,35 @@ Verified (local Bun 1.3.14, Windows):
 Left alone (staged human changes that aren't part of this task, not committed): AGENTS.md (written by next dev),
 README.md, package-lock.json (an npm lockfile, which a Bun project doesn't need. A human should decide whether to keep it).
 Next: M0-spike-auth (its deps M0-spike-sqlite and M0-env now pass).
+
+## 2026-10-10 – M0-spike-auth (passes)
+
+What changed (all spike code is throwaway, and M0-close deletes it):
+- app/spike/auth.ts: spike `betterAuth({ database: new Database("data/spike-auth.db"), emailAndPassword
+  { enabled, autoSignIn }, rateLimit.customRules (D44) })`. No trustedOrigins, no advanced.ipAddress.
+- app/api/auth/[...all]/route.ts: `toNextJsHandler(auth)` on the spike auth. M0-close deletes it and
+  M3-auth-server recreates it on lib/auth.ts.
+- data/spike-auth.db (gitignored): the CLI-generated schema plus users spike@ and spike2@example.com.
+  M0-close deletes it.
+- SPEC §8 (0001 note) and §12 R2/R10 record the outcomes. §8's SQL is unchanged.
+
+Findings:
+- R2 schema: the 1.7.7 CLI is the npm package `auth` (bins `auth`/`better-auth`). Command:
+    bunx --bun auth@1.7.7 generate --config app/spike/auth.ts --output <tmp>/schema.sql --yes
+  `--bun` is needed because the config imports bun:sqlite. It logs "Database schema mismatch / Missing tables"
+  first, which is expected on an empty DB. With case and whitespace normalized, the output is identical to SPEC §8
+  0001_better_auth.sql (4 tables, 3 indexes). Nothing went into package.json or bun.lock.
+- better-auth detects a bun:sqlite Database by itself (kysely-adapter checks `"fileControl" in db` →
+  BunSqliteDialect), so `database: db` works as §9 writes it.
+- R2 endpoints, `bun --bun next dev`: sign-up/email 200 and sign-in/email 200, each with
+  `Set-Cookie: better-auth.session_token=…; Max-Age=604800; Path=/; HttpOnly; SameSite=Lax`.
+  Under `next start`, sign-up is also 200 + Set-Cookie, and a foreign Origin gets 403.
+- R10, `bun --bun next build` + `bun --bun next start`: six wrong sign-ins → 401 401 401 401 401 429
+  (`{"message":"Too many requests. Please try again later."}`, x-retry-after). No advanced.ipAddress is needed:
+  Next's base-server sets `x-forwarded-for` from socket.remoteAddress, and better-auth's default IP header is
+  x-forwarded-for, so the "could not determine a client IP" warning never appears.
+- Note for M3-auth-errors: the 429 body has `message` and no `code`, so authErrorMessage must map on status 429 (as §7 says).
+- lint, typecheck and `prettier --check .` exit 0. `next build` lists ƒ /api/auth/[...all] and ƒ /spike.
+
+Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
+Next: M0-close (delete app/spike/, app/api/ and data/spike-auth.db, then run the M0 Done-when checks).

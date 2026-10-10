@@ -313,7 +313,7 @@ CREATE TABLE IF NOT EXISTS _migrations (
 
 ### `db/migrations/0001_better_auth.sql`
 
-This is better-auth's required core schema. Table and column names must match what better-auth 1.7.7 expects. Verify it in M0 by diffing against the output of the better-auth CLI `generate` command for the SQLite/Kysely adapter. If they differ, the generated output wins.
+This is better-auth's required core schema. Table and column names must match what better-auth 1.7.7 expects. Verify it in M0 by diffing against the output of the better-auth CLI `generate` command for the SQLite/Kysely adapter. If they differ, the generated output wins. Verified in M0: the 1.7.7 output matches the SQL below (R2).
 
 ```sql
 CREATE TABLE "user" (
@@ -689,7 +689,7 @@ Steps marked **(slow)** run with every POST request delayed by 1.5 s, so pending
 | ID | Risk | Mitigation |
 | -- | ---- | ---------- |
 | R1 | **`bun:sqlite` inside Next.js** (highest risk): Turbopack may fail to resolve `bun:sqlite`, or code may run on Node instead of Bun. Only community docs cover this; it is not verified for Next 16.4. | M0 spike: a throwaway page runs `select sqlite_version()` under `bun --bun next dev` **and** `build` + `start`. If it fails, try in order: `serverExternalPackages: ["bun:sqlite"]` in `next.config.ts`, then `next dev --webpack` / `next build --webpack`. If all fail, stop and ask (don't switch DB drivers without approval). **Verified (M0)** with Bun 1.3.14 and an unchanged `next.config.ts` (no `serverExternalPackages`, no `--webpack`): `/spike` shows SQLite 3.53.0 under `bun --bun next dev` and under `bun --bun next build` + `next start`. Bun 1.3.12 failed every production build (`TypeError: Expected CommonJS module to have a function wrapper` when loading react-dom 19.3 production server builds, a Bun bug fixed in 1.3.14), so the runtime pin in §4 is 1.3.14 and must stay ≥ 1.3.14. |
-| R2 | better-auth's expected schema differs from the hand-written `0001` SQL. | In M0, generate the schema with the better-auth CLI for the pinned version and diff it. The spike signs up and signs in one user against the migrated DB. |
+| R2 | better-auth's expected schema differs from the hand-written `0001` SQL. | In M0, generate the schema with the better-auth CLI for the pinned version and diff it. The spike signs up and signs in one user against the migrated DB. **Verified (M0)**: `bunx --bun auth@1.7.7 generate` (the 1.7.7 CLI package is `auth`; `--bun` is needed so the config can import `bun:sqlite`) on a `betterAuth({ database: new Database(…) })` config produces exactly the §8 `0001` SQL (same tables, columns, types, constraints and indexes; only case and whitespace differ), so §8 is unchanged. better-auth detects a `bun:sqlite` `Database` itself (Kysely `BunSqliteDialect`), so no adapter option is needed. On that schema, `POST /api/auth/sign-up/email` and `/sign-in/email` return 200 with `Set-Cookie: better-auth.session_token=…; HttpOnly; SameSite=Lax` under `next dev` and `next start`. A foreign `Origin` gets 403. |
 | R3 | TipTap hydration mismatch in Next SSR. | `immediatelyRender: false`; the editor lives only in a client component. |
 | R4 | The static renderer doesn't escape some attribute or text. | Unit tests in `render.test.ts` (escaping cases). Schema normalization drops unknown attrs. If escaping fails, stop and ask before adding `@tiptap/html`. |
 | R5 | Lost edits (no autosave, no unsaved-changes warning, session expiry). | Accepted per D2. The session-expiry link opens in a new tab so edits survive (§7). |
@@ -697,7 +697,7 @@ Steps marked **(slow)** run with every POST request delayed by 1.5 s, so pending
 | R7 | Multiple DB connections in dev (HMR) or `SQLITE_BUSY`. | Cache `db` on `globalThis` in dev. WAL + `busy_timeout = 5000`. |
 | R8 | Two tabs editing the same note overwrite each other. | Accepted: last save wins (D31). |
 | R9 | `.gitignore` ignores `.env*`, which also matches `.env.example`. | Add `!.env.example` and `data/` in M0. |
-| R10 | better-auth's rate limiter keys on the client IP. With no proxy in front of `next start`, it may not find one and never trigger, so D44 and checklist step 27 fail. | M0 spike: under `next start`, six quick wrong sign-ins return 429. If not, adjust better-auth's IP-address settings (`advanced.ipAddress`). If that doesn't work, stop and ask. |
+| R10 | better-auth's rate limiter keys on the client IP. With no proxy in front of `next start`, it may not find one and never trigger, so D44 and checklist step 27 fail. | M0 spike: under `next start`, six quick wrong sign-ins return 429. If not, adjust better-auth's IP-address settings (`advanced.ipAddress`). If that doesn't work, stop and ask. **Verified (M0)** with only the D44 `customRules` and no `advanced.ipAddress` option: under `bun --bun next start`, six quick wrong sign-ins return 401 ×5, then 429 (`{"message":"Too many requests. Please try again later."}`, `x-retry-after` header). Next's server sets `x-forwarded-for` from the socket address when it is missing, and better-auth reads that header by default, so `lib/auth.ts` needs no extra option. |
 
 ---
 
