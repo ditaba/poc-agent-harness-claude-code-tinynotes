@@ -321,3 +321,38 @@ lint, typecheck, `bunx prettier --check .` and `bun run build` exit 0. No UI cha
 
 Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
 Next: M2-repo (all deps pass now; runs M2 Done when), then M3-auth-server / M3-auth-errors.
+
+## 2026-10-10 – M2-repo (passes)
+
+Picked because every task from M3 on depends on it and all its deps (share-token, validation, render) pass.
+
+What changed:
+- lib/notes/repo.ts: Note / NoteSummary / SharedNote types and the eight §9 functions, raw parameterized SQL
+  through db.query(), db first. Owner queries all have `WHERE id = ? AND user_id = ?` (listNotes: `WHERE user_id = ?`);
+  no value or column list is interpolated into SQL (grep '\${' lib/notes/repo.ts is empty).
+  - listNotes: `share_token IS NOT NULL AS is_shared` → isShared boolean, so tokens never leave the repo for the list.
+    ORDER BY updated_at DESC only, as §9 (no tiebreaker).
+  - createNote(db, userId, now = Date.now()): crypto.randomUUID() id, title "", content structuredClone(EMPTY_DOC)
+    (so a caller can't mutate the shared constant), INSERT with explicit title, returns the Note built in JS.
+  - updateNote: sets title, content, updated_at only (share_token untouched, NOTE-16); expects ValidatedNoteInput.
+  - enableShare: exactly the §9 COALESCE … RETURNING share_token statement → existing token on repeat (SHARE-6),
+    null for missing/not-owned notes.
+  - disableShare: the §9 UPDATE; returns changes > 0. SQLite counts every row the WHERE matches as changed, even when
+    share_token was already NULL, so an owned private note → true (D42).
+  - getSharedNote: SELECT title, content, updated_at only (D8), no user scope.
+  - Content is JSON.parse'd into JSONContent on read; the DB stores the normalized string from validateNoteInput.
+- lib/notes/repo.test.ts: every §11 case plus: missing ids for get/update/delete/enable/disable, delete twice,
+  `now` defaults, created_at kept on update, raw row after createNote, the summary shape with isShared,
+  getSharedNote's exact shape (no id/user id), another user's token kept after their disableShare, re-enable
+  invalidating the old token (SHARE-5), and the CHECK boundary: exactly 102 400 bytes accepted and 102 401 rejected,
+  using "€"-heavy JSON whose .length is far below its byte length (so the CHECK is proven to count bytes).
+
+Mutation runs (each restored afterwards): getNote/listNotes/deleteNote without the user scope, updateNote clearing
+share_token, enableShare without COALESCE, enableShare bumping updated_at, disableShare limited to shared notes,
+ASC ordering, and returning EMPTY_DOC uncloned each fail at least one test.
+
+Verified: `bun test lib/share-token lib/notes` 85 pass (M2 Done when); `bun test` 95 pass; lint, typecheck,
+`bunx prettier --check .` and `bun run build` exit 0. No UI change, so no Playwright run. M2 Done when is met.
+
+Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
+Next: M3-auth-server and M3-auth-errors (both depend only on M2-repo), then M3-sign-up.
