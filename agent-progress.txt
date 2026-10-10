@@ -618,3 +618,58 @@ Verified: `bun test lib/call-action lib/format-date` 8 pass; `bun test` 118 pass
 
 Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
 Next: M4-notes-list (createNoteAction, NewNoteButton, the full /notes list with formatDateTime, app/error.tsx).
+
+## 2026-10-11 – M4-notes-list (passes)
+
+Picked because its only dep, M4-lib, passes, and every later M4/M5/M6 task depends on it.
+
+What changed:
+- lib/notes/actions.ts ("use server"): createNoteAction only (save/delete/share actions come in later tasks).
+  getCurrentUser() → no user: redirect("/sign-in"); else createNote(db, user.id) (title "", EMPTY_DOC,
+  crypto.randomUUID()), revalidatePath("/notes"), redirect(`/notes/${id}`). No try/catch, so an unexpected
+  error reaches app/error.tsx (§9).
+- components/new-note-button.tsx (server): <form action={createNoteAction}> with a "New note" submit button.
+- app/notes/page.tsx: the stub becomes the NOTE-1 list. requireUser() → listNotes(db, user.id) → a <ul> of rows,
+  each a Link to /notes/{id} with the title as React text (or "Untitled"), "Updated <time>{formatDateTime}</time>"
+  (dateTime = ISO string) and a "Shared" pill when isShared. The heading row has "Your notes" + NewNoteButton, which
+  is always shown; with no notes the page shows "No notes yet. Create your first one." (NOTE-2).
+- app/error.tsx ("use client"): <h1>Something went wrong</h1> and a "Try again" button that calls reset(), as §7
+  says. No client-side logging: the server already logs the error (Next prints "⨯ Error: …"), and React logs caught
+  errors to the console.
+
+Verified with Playwright MCP (`bun run dev`, fresh DB):
+- Step 2 (slow): sign-up ada@example.com → /notes with "No notes yet. Create your first one." and "New note" (NOTE-2).
+- Step 8's "New note" part: → /notes/{uuid} (404 until M4-editor-page, as allowed). The row has title "", content
+  {"type":"doc","content":[{"type":"paragraph"}]}, no share_token and created_at = updated_at (NOTE-4, D27).
+  Browser Back → /notes lists it; a second "New note" + Back lists the newer one first (NOTE-4, D3).
+- NOTE-1 via SQL: a titled note with a share_token and a bumped updated_at → first row "Groceries", "Updated Oct 11,
+  2026, 5:32 AM", "Shared" badge; an empty title → "Untitled", no badge; a "<b>bold?</b>" title renders as literal
+  text (§10). Rows link to /notes/{id} in updated_at DESC order.
+- Step 21's NOTE-3: bob@example.com sees the empty state, then only his own note, never Ada's three.
+- createNoteAction with no session (cookies cleared while /notes is open = signed out in another tab): "New note" →
+  /sign-in, and no note is inserted (Bob still had 1).
+- app/error.tsx: with a temporary `throw new Error("test")` in createNoteAction, "New note" → "Something went wrong" +
+  "Try again" (the server logged "⨯ Error: test"); "Try again" → reset() shows the list again, and no note was
+  inserted. The throw was removed and "New note" worked again; `grep 'throw new Error("test")'` is empty.
+- Console: only the expected /notes/{id} 404s (and the intentional test error). No hydration warnings.
+Verified with Playwright MCP (`bun run build && bun run start`): sign-up → empty state; twice "New note" → Back →
+the new note is the first row.
+
+Findings:
+- revalidatePath("/notes") in createNoteAction: in dev and in production, Back showed the new note first. A dev run
+  without the call did too, so the call isn't proven necessary. It stays because the Next 16 docs say revalidatePath
+  in a Server Function purges the client router cache (NOTE-4's "appears at the top of /notes").
+- Next 16.3 made error.js's `retry` prop stable, and the docs now recommend retry() (re-fetches and re-renders the
+  segment) over reset() (re-renders without re-fetching). §7 and this task say reset(), so app/error.tsx uses reset().
+  For the form-action error above, reset() works. For a server render error (e.g. a DB failure in /notes), reset()
+  re-renders the same failed payload, and retry() would fetch the page again. A human may want §7 changed to retry().
+- Playwright MCP gotcha (Windows, headed Chromium): after some runs, trusted input stopped reaching the page. Clicks and
+  Enter fired no pointerdown/click/submit events, not even after reload or bringToFront, while page.evaluate and DOM
+  .click() still worked. browser_close + navigate (a fresh browser) fixed it every time. If a click "succeeds" but
+  nothing happens and no request is sent, restart the browser before suspecting the app.
+
+Checks: bun test (118 pass), lint, typecheck, `bunx prettier --check .` and `bun run build` exit 0 (/notes is ƒ dynamic).
+Test data removed afterwards: data/app.db has no users, sessions, accounts or notes.
+
+Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
+Next: M4-editor-page (app/notes/[id]/page.tsx, NoteEditor with title + EditorContent, app/not-found.tsx, .note-content CSS).

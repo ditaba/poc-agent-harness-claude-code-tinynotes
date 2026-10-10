@@ -496,7 +496,7 @@
       "Playwright MCP (bun run dev): §11 step 2 (empty state), the \"New note\" part of step 8 (the /notes/{id} URL is enough; the page arrives in M4-editor-page), step 21's NOTE-3 check, and the temporary-throw check for app/error.tsx",
       "grep -n 'throw new Error(\"test\")' lib/notes/actions.ts  # expect no output"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "M4-editor-page",
