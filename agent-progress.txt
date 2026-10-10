@@ -225,3 +225,43 @@ Verified:
 
 Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
 Next: M2-share-token and M2-validation (both depend only on M1-db-cli), then M2-render, then M2-repo.
+
+## 2026-10-10 – M2-validation (passes)
+
+Picked before M2-share-token because it carries M2's main risk (TipTap schema behavior on the server) and
+M2-render and M2-repo depend on it.
+
+What changed:
+- lib/notes/limits.ts: TITLE_MAX_LENGTH = 200, CONTENT_MAX_BYTES = 102_400, utf8ByteLength (TextEncoder). No imports.
+- lib/notes/editor-extensions.ts: editorExtensions = [StarterKit.configure({ heading: { levels: [2, 3] }, link: false,
+  underline: false, horizontalRule: false })] and EMPTY_DOC, exactly as §9.
+- lib/notes/validation.ts: validateNoteInput in the §9 order: non-string fields (or a null input, since Server Action
+  args come from the client) → INVALID_CONTENT; trimmed title > 200 → TITLE_TOO_LONG; JSON.parse, root type "doc",
+  Node.fromJSON(getSchema(editorExtensions)) + check() → any throw is INVALID_CONTENT; size of the normalized
+  JSON.stringify(node.toJSON()) > 102 400 bytes → CONTENT_TOO_LARGE. The schema is built once at module load.
+  Also exports the NoteInputError union.
+- lib/notes/validation.test.ts: every §11 case plus: the limit applies after trim, title is checked before content,
+  non-object JSON (null, string, array, number), known nodes that break content rules (text at doc root, empty doc,
+  bold inside a code block), and non-string/null input.
+
+Findings (M2 main risk, TipTap 3.31.4 / prosemirror-model 1.25.12):
+- getSchema(editorExtensions) works in Bun with no DOM and no Editor. Nodes: doc, paragraph, text, heading,
+  blockquote, bulletList, orderedList, listItem, codeBlock, hardBreak. Marks: bold, italic, strike, code. No link,
+  underline or horizontalRule.
+- Node.fromJSON throws on unknown nodes ("Unknown node type: image") and marks ("There is no mark type link"), and
+  on empty text nodes. It drops unknown attrs on nodes and marks and fills defaults. It does NOT check content
+  rules: check() is what rejects text at the doc root, an empty doc and marks inside a code block. A mutation run
+  (check() removed) fails the "content rules" test.
+- Defaults that normalizing adds: heading level 1 (so {"type":"heading"} grows by 19 bytes, which is how the D40
+  growth test works), orderedList { start: 1, type: null }, codeBlock { language: null }.
+- No attr has a `validate` function, so attr values aren't type-checked: a heading level outside [2, 3] (or any
+  value) is stored as given. TipTap's Heading renderHTML falls back to levels[0] (h2) for such levels, so PUB-4
+  still holds. codeBlock language is an arbitrary string, which M2-render's escaping test covers (R4).
+- Mutation runs also confirmed the byte-count test fails with .length, the growth test fails if size is checked
+  on the raw input, and the trim tests fail without trim().
+
+Verified: `bun test lib/notes/validation` 17 pass; `bun test` 27 pass (env, migrate, validation); lint, typecheck,
+`bunx prettier --check .` and `bun run build` exit 0. No UI change, so no Playwright run.
+
+Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
+Next: M2-share-token (independent), then M2-render (needs editorExtensions; R4 stop-and-ask), then M2-repo.
