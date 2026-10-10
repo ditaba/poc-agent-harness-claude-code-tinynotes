@@ -59,7 +59,8 @@
       "bun run lint",
       "bun run typecheck"
     ],
-    "passes": false
+    "passes": false,
+    "blocked": "R1 fails under every listed fallback, but the cause is the pinned Bun runtime, not bun:sqlite. `bun --bun next dev` works (/spike shows SQLite 3.51.2 on Bun 1.3.12). `bun --bun next build` fails in 'Collecting page data' with 'TypeError: Expected CommonJS module to have a function wrapper ... this is a bug in Bun'. Tried: plain build, serverExternalPackages [\"bun:sqlite\"], --webpack, and R6 (Next 16.3.8 in a scratch dir): all fail. Root cause: Bun 1.3.12 can't require() any react-dom 19.3.0 server production build (`NODE_ENV=production bun -e \"require('react-dom/server')\"` throws the same error even outside Next; development builds load fine), so every Next app-page/pages runtime fails in production. Bun 1.3.14 (scratch binary from @oven/bun-windows-x64) fixes it: with the unchanged next.config.ts, build exits 0 and next start serves /spike with SQLite 3.53.0. Changing D19 (bun@1.3.12 + @types/bun 1.3.12 in §4) is a stack decision, so a human must decide. Suggested: bump packageManager to bun@1.3.14 and @types/bun to 1.3.14, record it in §3 D19, §4 and §12 R1, then re-run this task."
   },
   {
     "id": "M0-spike-auth",

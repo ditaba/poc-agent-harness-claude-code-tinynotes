@@ -24,3 +24,39 @@ SPEC.md and .claude/settings.json report "ignored": true, `bun run lint` and `bu
    - `bunx next build` (Node 22.16.0 runtime) builds the same scaffold fine.
    - Not tried yet: `bun --bun next dev`, serverExternalPackages, R6 (pin next/eslint-config-next 16.3.8).
    M0-deps' acceptance/verify don't include build, so this is left to M0-spike-sqlite, which owns R1.
+
+## 2026-10-10 – M0-spike-sqlite (BLOCKED)
+
+What changed:
+- app/spike/page.tsx (throwaway, from the previous iteration): `select sqlite_version()` on an in-memory
+  bun:sqlite DB plus `Bun.version`. Committed so the unblocked rerun has it; M0-close deletes it.
+- next.config.ts unchanged (the serverExternalPackages fallback didn't help, so it was reverted).
+- prd.json: M0-spike-sqlite gets a "blocked" field.
+
+Findings (R1):
+- `bun --bun next dev`: OK. GET /spike → 200, sqlite_version 3.51.2, runtime bun 1.3.12.
+- `bun --bun next build`: FAILS in "Collecting page data" (/_not-found) with
+    Failed to load external module next/dist/compiled/next-server/app-page-turbo.runtime.prod.js:
+    TypeError: Expected CommonJS module to have a function wrapper. ... this is a bug in Bun
+- R1 fallback 1, serverExternalPackages: ["bun:sqlite"]: same error.
+- R1 fallback 2, `bun --bun next build --webpack`: same error (for /).
+- R6, Next 16.3.8 (scratch dir, not applied): its app-page/pages prod runtimes fail the same way, so this
+  is not a 16.4.0 regression.
+- Root cause: Bun 1.3.12 cannot require() any react-dom 19.3.0 *production* server build
+  (cjs/react-dom-server{,-legacy}.{node,bun,edge,browser}.production.js). Repro with no Next involved:
+    NODE_ENV=production bun -e "require('react-dom/server')"   → same TypeError
+    NODE_ENV=development ...                                    → ok
+  Next's app-route/pages-api/server runtimes load fine; only runtimes that bundle react-dom/server fail.
+  Public reports (Vercel community, simstudioai/sim PR #6236) see the same error with Bun 1.3.12/1.3.13
+  and Next 16.3+, fixed in Bun 1.3.14.
+- Verified fix: a scratch Bun 1.3.14 binary (npm pack @oven/bun-windows-x64@1.3.14, outside the repo,
+  since deleted) with the UNCHANGED next.config.ts: `next build` exits 0 and `next start` serves /spike with
+  sqlite_version 3.53.0, runtime bun 1.3.14.
+- lint and typecheck exit 0.
+
+Why blocked: every R1 fallback failed, and the only working fix changes the pinned runtime (D19, §4:
+bun@1.3.12 and @types/bun 1.3.12). That is a stack decision, not one of the listed fallbacks.
+Suggested decision: bump "packageManager" to bun@1.3.14 and @types/bun to 1.3.14 (check that it exists),
+install Bun 1.3.14 locally, record it in §3 D19, §4 and §12 R1, remove the "blocked" field, and re-run
+M0-spike-sqlite (dev + build + start). No next.config.ts change looks needed.
+Other tasks: M0-env doesn't depend on this task and can still run.
