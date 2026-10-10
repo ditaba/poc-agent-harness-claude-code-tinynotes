@@ -333,7 +333,7 @@
       "The duplicate-email code that better-auth 1.7.7 actually returns is confirmed in BASE_ERROR_CODES and noted in agent-progress.txt (§7)"
     ],
     "verify": ["bun test lib/auth-errors", "bun run lint", "bun run typecheck"],
-    "passes": false
+    "passes": true
   },
   {
     "id": "M3-sign-up",

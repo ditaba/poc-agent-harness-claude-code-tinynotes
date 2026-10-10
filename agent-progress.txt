@@ -395,3 +395,48 @@ removing throwaway pages.
 
 Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
 Next: M3-auth-errors (depends only on M2-repo), then M3-sign-up (needs both).
+
+## 2026-10-11 – M3-auth-errors (passes)
+
+Picked because it is M3-sign-up's last unfinished dependency (M3-auth-server passes); its only dep, M2-repo, passes.
+
+What changed:
+- lib/auth-errors.ts: authErrorMessage(error) with no imports (client module). Order: null → generic; status 429 →
+  "Too many attempts…"; VALIDATION_ERROR → copy by the "[body.<field>]" prefix of its message (email → "Enter a valid
+  email address.", password → "Password must be 8–128 characters.", other → generic); otherwise the §7 code map
+  (a Map, so codes like "toString"/"__proto__" can't hit Object.prototype) or generic.
+- lib/auth-errors.test.ts: every §7 row (both duplicate-email codes, both password codes, INVALID_EMAIL, 429), null,
+  unknown code, no code + non-429 status, prototype-key codes, the two sign-up VALIDATION_ERROR shapes plus another field
+  and a missing message, and a check that every mapped code exists in better-auth's BASE_ERROR_CODES
+  (`import { BASE_ERROR_CODES } from "better-auth"`, test only).
+- SPEC: §7 auth table gains the VALIDATION_ERROR cases, and the "must be checked" note now records the verified codes;
+  §9 authErrorMessage takes an optional `message` (authClient's error object already has it, so callers just pass
+  `error`); AUTH-4/AUTH-5 mention the sign-up VALIDATION_ERROR path. No UI copy changed.
+
+Findings (better-auth 1.7.7, confirmed in BASE_ERROR_CODES and over HTTP with `bun run dev`):
+- Duplicate email on sign-up → 422 USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL (USER_ALREADY_EXISTS exists in BASE_ERROR_CODES
+  but sign-up doesn't throw it). This holds only while autoSignIn is true and requireEmailVerification is off; with
+  autoSignIn: false sign-up returns a generic 200 for existing emails instead (sign-up.mjs).
+- Sign-up 1–7 / 129 chars → 400 PASSWORD_TOO_SHORT / PASSWORD_TOO_LONG.
+- !! Sign-up with a malformed email → 400 VALIDATION_ERROR "[body.email] Invalid email address", NOT INVALID_EMAIL:
+  the body schema (z.email()) runs before the handler, whose INVALID_EMAIL check is unreachable. An empty password on
+  sign-up → 400 VALIDATION_ERROR "[body.password] Too small: …". The format is better-call's validator
+  (`[${validating}.${path}] ${message}`). Without the VALIDATION_ERROR mapping, AUTH-5's bypassed-validation check in
+  M3-sign-up would show "Something went wrong." M3-sign-up's acceptance still says INVALID_EMAIL; the user-visible
+  check is unchanged.
+- Sign-in with a malformed email → 400 INVALID_EMAIL; wrong password, unknown email and empty password → 401
+  INVALID_EMAIL_OR_PASSWORD.
+- authClient (createAuthClient from better-auth/react → better-fetch) returns error = { ...JSON body (code, message),
+  status, statusText }; a network failure throws instead of returning an error, so AuthForm should catch it and pass
+  null. End to end through authClient + authErrorMessage against the dev server, every case above gave its §7 copy.
+
+Mutation runs (each restored): no 429 branch, USER_ALREADY_EXISTS unmapped, plain-object lookup, password field mapped
+to the email copy, no VALIDATION_ERROR branch, and an email-copy fallback for VALIDATION_ERROR each fail ≥ 1 test.
+
+Verified: `bun test lib/auth-errors` 15 pass; `bun test` 110 pass; lint, typecheck, `bunx prettier --check .` and
+`bun run build` exit 0. No UI change, so no Playwright run. Test users created over HTTP were deleted (data/app.db has
+no users, sessions or accounts).
+
+Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
+Next: M3-sign-up (deps M3-auth-server and M3-auth-errors pass). AuthForm passes authClient's `error` straight to
+authErrorMessage, and null when the call throws (AUTH-14).
