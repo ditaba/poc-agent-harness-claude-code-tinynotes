@@ -60,3 +60,23 @@ Suggested decision: bump "packageManager" to bun@1.3.14 and @types/bun to 1.3.14
 install Bun 1.3.14 locally, record it in §3 D19, §4 and §12 R1, remove the "blocked" field, and re-run
 M0-spike-sqlite (dev + build + start). No next.config.ts change looks needed.
 Other tasks: M0-env doesn't depend on this task and can still run.
+
+## 2026-10-10 – M0-env (passes)
+
+What changed:
+- .gitignore: kept `.env*`, added `!.env.example` and `data/` (R9).
+- .env.example (now tracked, first commit of it): exactly BETTER_AUTH_SECRET, BETTER_AUTH_URL=http://localhost:3000
+  and DB_PATH=data/app.db (§4). It replaces an untracked file that had a 62-char "secret" and no BETTER_AUTH_URL.
+  The placeholder is deliberately `change-me` (9 chars): a copied-but-unedited .env then fails checkEnv's
+  ≥32-char rule in M1 instead of running with a known secret ("set a real secret", §4 Fresh clone, D36).
+- Local .env (ignored, not committed): random 43-char base64url BETTER_AUTH_SECRET (32 random bytes),
+  BETTER_AUTH_URL=http://localhost:3000, DB_PATH=data/app.db. Bun and `next build` both load it.
+
+Verified: `git check-ignore -v .env data/app.db` lists both; `git check-ignore .env.example` exits 1 with no
+output; `git ls-files .env data` is empty; `git ls-files .env.example` lists it after the commit.
+lint and typecheck exit 0; `bun test` reports "0 test files" (expected in M0).
+`bun run build` exits 0. The local Bun is now 1.3.14 and the working tree has uncommitted, staged human changes
+(packageManager bun@1.3.14, @types/bun 1.3.14 in package.json and SPEC §4, plus AGENTS.md, README.md and
+package-lock.json). They were left alone and are not part of this commit. M0-spike-sqlite still has its
+"blocked" field, so it wasn't picked. A human should finish the unblock (D19/§12 R1 wording, remove "blocked")
+before the next iteration. Every other remaining task depends on it.
