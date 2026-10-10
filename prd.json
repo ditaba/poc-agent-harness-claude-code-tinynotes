@@ -187,7 +187,7 @@
       "buildShareUrl(\"abc…\", \"http://x\") → \"http://x/s/abc…\"; the default base is process.env.BETTER_AUTH_URL"
     ],
     "verify": ["bun test lib/share-token", "bun run lint", "bun run typecheck"],
-    "passes": false
+    "passes": true
   },
   {
     "id": "M2-validation",

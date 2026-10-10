@@ -295,3 +295,29 @@ M5's risk (the static renderer behaving differently in the Next server build) is
 
 Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
 Next: M2-share-token (independent), then M2-repo (needs share-token, validation and render; runs M2 Done when).
+
+## 2026-10-10 – M2-share-token (passes)
+
+Picked because it is the last unfinished dependency of M2-repo, which everything from M3 on depends on.
+
+What changed:
+- lib/share-token.ts: SHARE_TOKEN_PATTERN = /^[A-Za-z0-9_-]{32}$/ (no g flag, so .test() has no lastIndex state);
+  generateShareToken() = 24 bytes from crypto.getRandomValues → Buffer.toString("base64url") (32 chars, no padding, D5);
+  isShareTokenFormat(value) = SHARE_TOKEN_PATTERN.test(value); buildShareUrl(token, baseUrl = process.env.BETTER_AUTH_URL)
+  = new URL(`/s/${token}`, baseUrl).href. new URL() means a trailing slash on the base gives no "//s/", and a missing
+  BETTER_AUTH_URL throws (Invalid URL) instead of silently building "undefined/s/…". Server-only (pages and actions);
+  SharePanel gets URLs from props and action results, so Buffer is fine.
+- lib/share-token.test.ts: the §11 cases (32 chars + pattern; 1 000 unique tokens, all matching the pattern;
+  31/33 chars, +, / and = rejected; buildShareUrl(token, "http://x") → "http://x/s/{token}"), plus: decodes to 24 bytes,
+  "-"/"_" accepted, empty/leading-space/trailing-newline rejected, trailing-slash base, and the BETTER_AUTH_URL default
+  (set in the test and restored afterwards, deleted if it was unset, since assigning undefined stores "undefined").
+  The §11 example "abc…" is shorthand; the tests use a real 32-char token (new URL would percent-encode "…").
+
+Mutation runs: base64 instead of base64url, an unanchored pattern, 16 bytes, and plain `${baseUrl}/s/${token}` each
+fail at least one test.
+
+Verified: `bun test lib/share-token` 13 pass; `bun test` 60 pass (env, migrate, validation, render, share-token);
+lint, typecheck, `bunx prettier --check .` and `bun run build` exit 0. No UI change, so no Playwright run.
+
+Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
+Next: M2-repo (all deps pass now; runs M2 Done when), then M3-auth-server / M3-auth-errors.
