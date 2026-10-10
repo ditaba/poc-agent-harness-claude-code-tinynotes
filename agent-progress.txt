@@ -531,3 +531,53 @@ Test data removed afterwards: data/app.db has no users, sessions, accounts or no
 
 Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
 Next: M3-notes-shell (app/page.tsx redirect, default title, stub /notes, AppHeader, SignOutButton; runs M3 Done when).
+
+## 2026-10-11 – M3-notes-shell (passes)
+
+Picked because its only dep, M3-sign-in, passes, and every M4+ task depends on it (it closes M3).
+
+What changed:
+- app/page.tsx: the scaffold home page is replaced by the NAV-1 redirect: getCurrentUser() → redirect("/notes"),
+  else redirect("/sign-in") (D22). Nothing references the scaffold SVGs in public/ any more; M7-readme-cleanup deletes them.
+- app/layout.tsx: default metadata is just { title: "TinyNotes" } (§5); the scaffold description is gone. Fonts and
+  globals.css are untouched (M7-visual owns styling and the dark-mode block).
+- components/app-header.tsx (server): <header> with "TinyNotes" → /notes, the email and <SignOutButton>. It takes
+  `email` as a prop from the page's requireUser(), so it never makes its own auth decision (D25). The email truncates.
+- components/sign-out-button.tsx ("use client"): authClient.signOut() inside useTransition. On success, a nested
+  startTransition runs router.push("/sign-in") + router.refresh(), so the button stays disabled until /sign-in has
+  loaded (same pattern as AuthForm). On an `error` result or a thrown call (network), it does console.error and
+  ends the transition: the button is enabled again and no message is shown (D48). The label stays "Sign out".
+- app/notes/page.tsx (stub, M4-notes-list replaces it): metadata "Your notes – TinyNotes"; requireUser() (AUTH-12);
+  <AppHeader email> plus <main> with <h1>Your notes</h1>.
+
+Verified with Playwright MCP (`bun run dev`, fresh DB):
+- Step 1: signed out, / → /sign-in (curl: 307 for both / and /notes).
+- Steps 2+3 (slow): sign-up ada@example.com → "Creating account…" disabled → /notes with the header "TinyNotes"
+  (href /notes), "ada@example.com", "Sign out", h1 "Your notes", title "Your notes – TinyNotes".
+- Step 4 (slow): "Sign out" disabled while pending (label unchanged) → /sign-in, cookie gone, the session row deleted;
+  /notes → /sign-in (AUTH-10, AUTH-12).
+- Step 5: duplicate → "An account with this email already exists.", email kept, password cleared.
+- Step 6: wrong password and nobody@example.com → "Invalid email or password.", email kept, password cleared.
+  MSG-2 on /sign-in: the error stayed while typing; on the next (slow) submit the alert was empty while "Signing in…" showed.
+- Step 7 (slow): ADA@example.com → "Signing in…" disabled → /notes; /sign-in → /notes; / → /notes.
+- D48: sign-out aborted (network) and fulfilled as HTTP 500 → the button was disabled while pending, then enabled
+  again on /notes with the page text unchanged and no alert. The cookie was kept, and a reload was still signed in.
+- Default title: a route without its own metadata (Next's built-in 404) has <title>TinyNotes</title> from the layout.
+- Console: only the intended 422/401/aborted/500 requests and the two logged sign-out failures. No hydration warnings.
+
+Verified with Playwright MCP (`bun run build && bun run start`):
+- Build lists ƒ / (now dynamic), ƒ /notes, ƒ /sign-in, ƒ /sign-up, ƒ /api/auth/[...all], ○ /_not-found.
+- Step 27: six wrong sign-ins → 401 ×5, then 429 → "Too many attempts. Please wait a minute and try again.",
+  email kept and password cleared.
+- After 62 s: correct sign-in → /notes with the header. Step 26's cookie check: better-auth.session_token is
+  HttpOnly, SameSite=Lax (Secure false, as §10 expects on http://localhost). / → /notes. Sign out → /sign-in, no cookies;
+  /notes → /sign-in, and Back after that stays on /sign-in.
+
+M3 Done when: `bun test lib/auth-errors` 15 pass; steps 1–7 and 27 pass; MSG-2 checked on an auth form; cookie
+HttpOnly + SameSite=Lax; `grep -n trustedOrigins lib/auth.ts` and the trustedOrigins/allowedOrigins grep over lib, app
+and next.config.ts print nothing. M3 is complete.
+Checks: bun test (110 pass), lint, typecheck, `bunx prettier --check .` and `bun run build` exit 0.
+Test data removed afterwards: data/app.db has no users, sessions, accounts or notes.
+
+Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
+Next: M4-lib (lib/errors.ts, lib/call-action.ts, lib/format-date.ts + tests), then M4-notes-list.
