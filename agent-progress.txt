@@ -265,3 +265,33 @@ Verified: `bun test lib/notes/validation` 17 pass; `bun test` 27 pass (env, migr
 
 Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
 Next: M2-share-token (independent), then M2-render (needs editorExtensions; R4 stop-and-ask), then M2-repo.
+
+## 2026-10-10 – M2-render (passes)
+
+Picked before M2-share-token because it carries the R4 stop-and-ask risk, and M2-repo needs it.
+
+What changed:
+- lib/notes/render.ts: renderNoteHtml(content) = renderToHTMLString({ extensions: editorExtensions, content })
+  from "@tiptap/static-renderer/pm/html-string", exactly as §9. No options, no @tiptap/html.
+- lib/notes/render.test.ts: the §11 cases (each D4 node/mark → its exact HTML, <script> text escaped, hostile
+  code-block language escaped, every-format doc has only PUB-4 tags), plus: EMPTY_DOC → "<p></p>", & escaping,
+  text inside marks and code blocks escaped, a hostile orderedList `start` escaped, and heading levels 1, 4 and a
+  hostile string → <h2>.
+
+Findings (R4, static-renderer 3.31.4): R4 is NOT triggered, so no block.
+- Text goes through escapeHTML (& < >). Attribute values go through escapeHTMLAttribute (& < > "), and null/undefined
+  attrs are omitted. Attribute names come from the extension definitions, never from content.
+- JSON input is converted with Node.fromJSON on the editor schema, so unknown attrs are dropped and unknown
+  types throw (no unhandledNode/unhandledMark fallback is passed).
+- Exact output: hardBreak → "<br/>"; orderedList with start 1 → "<ol>" (start ≠ 1 → start="N"); codeBlock → "<pre><code>"
+  with class="language-…" only when language is set. Nested marks follow schema order, not JSON order.
+- Heading levels outside [2, 3] (validation stores attr values as given, see M2-validation) render as <h2>.
+- Mutation runs (render.ts temporarily given nodeMapping overrides): unescaped text, an unescaped code-block class,
+  an unescaped ol start and a blockquote rendered as <div> each fail the matching tests.
+
+Verified: `bun test lib/notes/render` 20 pass; `bun test` 47 pass (env, migrate, validation, render); lint, typecheck,
+`bunx prettier --check .` and `bun run build` exit 0. No UI change, so no Playwright run.
+M5's risk (the static renderer behaving differently in the Next server build) is still open for M5-public-page.
+
+Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
+Next: M2-share-token (independent), then M2-repo (needs share-token, validation and render; runs M2 Done when).
