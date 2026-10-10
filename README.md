@@ -1,3 +1,9 @@
+```
+branch:
+    + initial
+    + agent-harness-implement
+```
+
 # Follow instruction in `spec-to-prd-prompts.md` in order to create PRD from `requestments.txt`
 
 ## Create CLAUDE.md after create SPEC.md
