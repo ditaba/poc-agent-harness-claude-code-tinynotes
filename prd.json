@@ -1,0 +1,619 @@
+[
+  {
+    "id": "M0-deps",
+    "milestone": "M0",
+    "description": "Pin every dependency and script per §4 and add Prettier with the Tailwind plugin and .prettierignore",
+    "spec": ["§4", "§14 M0", "D19", "D23", "D46"],
+    "dependsOn": [],
+    "acceptance": [
+      "package.json lists exactly the §4 packages at the §4 versions with no ^ or ~, plus \"packageManager\": \"bun@1.3.12\" (D19)",
+      "Scripts lint, typecheck, test and format match §4; dev/build/start are `bun --bun next dev|build|start` without the db:migrate prefix and there is no db:migrate script yet (§14 M0; added in M1-db-cli)",
+      "`bun run format` formats code, CSS and JSON and sorts Tailwind classes, but leaves *.md and .claude/ untouched: Prettier reports SPEC.md and .claude/settings.json as ignored (D23, D46)",
+      "`bun install --frozen-lockfile`, `bun run lint` and `bun run typecheck` exit 0 on the scaffold"
+    ],
+    "verify": [
+      "bun install --frozen-lockfile",
+      "grep -nE '\"[~^][0-9]' package.json  # expect no output",
+      "bun run format && bunx prettier --check .",
+      "bunx prettier --file-info SPEC.md  # \"ignored\": true",
+      "bunx prettier --file-info .claude/settings.json  # \"ignored\": true",
+      "bun run lint",
+      "bun run typecheck"
+    ],
+    "passes": false
+  },
+  {
+    "id": "M0-env",
+    "milestone": "M0",
+    "description": "Fix .gitignore and .env.example per §4 and create a local .env for later tasks",
+    "spec": ["§4 Environment", "R9"],
+    "dependsOn": [],
+    "acceptance": [
+      ".env.example contains exactly BETTER_AUTH_SECRET (placeholder), BETTER_AUTH_URL=http://localhost:3000 and DB_PATH=data/app.db (§4)",
+      ".env and data/ are ignored by git; .env.example is not ignored and is committed with this task (today `.env*` hides it, so it is untracked) (R9)",
+      "A local, uncommitted .env exists with a random BETTER_AUTH_SECRET of at least 32 chars, so dev/build/start can run in later tasks"
+    ],
+    "verify": [
+      "git check-ignore -v .env data/app.db  # both listed",
+      "git check-ignore .env.example  # expect no output (exit 1)",
+      "git ls-files .env data  # expect no output",
+      "git ls-files .env.example  # after the commit: lists it"
+    ],
+    "passes": false
+  },
+  {
+    "id": "M0-spike-sqlite",
+    "milestone": "M0",
+    "description": "Throwaway spike: prove bun:sqlite works inside Next.js under dev and production builds (R1)",
+    "spec": ["R1", "D28", "§14 M0"],
+    "dependsOn": ["M0-deps"],
+    "acceptance": [
+      "GET /spike (app/spike/page.tsx) renders the result of `select sqlite_version()` via bun:sqlite under `bun --bun next dev` (R1)",
+      "The same page renders the version after `bun --bun next build` and `bun --bun next start` (R1)",
+      "If either fails, the R1 fallbacks are tried in the listed order and the first that works is applied (next.config.ts and/or scripts); if none works, mark the task blocked and don't switch DB drivers (CLAUDE.md, Blocked tasks)",
+      "SPEC §12 R1 records the outcome (verified, plus any config change that later tasks must keep)"
+    ],
+    "verify": [
+      "bun --bun next dev  # then: curl -s localhost:3000/spike shows a version such as 3.x",
+      "bun --bun next build && bun --bun next start  # then the same curl",
+      "bun run lint",
+      "bun run typecheck"
+    ],
+    "passes": false
+  },
+  {
+    "id": "M0-spike-auth",
+    "milestone": "M0",
+    "description": "Throwaway spike: better-auth on bun:sqlite with the CLI-verified schema, sign-up/sign-in and the rate limiter (R2, R10)",
+    "spec": ["R2", "R10", "§8 0001_better_auth.sql", "D44", "§14 M0"],
+    "dependsOn": ["M0-spike-sqlite", "M0-env"],
+    "acceptance": [
+      "The better-auth 1.7.7 CLI `generate` output (run with bunx, not added to package.json) is diffed against §8 0001_better_auth.sql; any difference is fixed in SPEC §8, because the generated output wins (R2)",
+      "With that schema on a spike DB, POST /api/auth/sign-up/email and POST /api/auth/sign-in/email each return 200 with Set-Cookie (R2)",
+      "Under `next start` with the D44 customRules, six quick wrong sign-ins → the sixth returns 429; if not, advanced.ipAddress is adjusted, and if that still fails, mark the task blocked (R10; CLAUDE.md, Blocked tasks)",
+      "SPEC §12 R2 and R10 record the outcome and any required better-auth option, so M3-auth-server can copy it"
+    ],
+    "verify": [
+      "curl -si -X POST localhost:3000/api/auth/sign-up/email -H 'content-type: application/json' -H 'origin: http://localhost:3000' -d '{\"email\":\"spike@example.com\",\"password\":\"password123\",\"name\":\"spike@example.com\"}'  # 200 + set-cookie",
+      "for i in 1 2 3 4 5 6; do curl -s -o /dev/null -w '%{http_code}\\n' -X POST localhost:3000/api/auth/sign-in/email -H 'content-type: application/json' -H 'origin: http://localhost:3000' -d '{\"email\":\"spike@example.com\",\"password\":\"wrongpass1\"}'; done  # under next start: last is 429",
+      "bun run lint",
+      "bun run typecheck"
+    ],
+    "passes": false
+  },
+  {
+    "id": "M0-close",
+    "milestone": "M0",
+    "description": "Delete all spike code and run the M0 Done-when checks",
+    "spec": ["§14 M0 Done when"],
+    "dependsOn": ["M0-spike-auth"],
+    "acceptance": [
+      "No spike code or spike DB file remains (app/spike/, the spike auth config and app/api/auth/[...all]/route.ts are deleted); config changes required by R1/R10 stay (§14 M0)",
+      "SPEC §12 marks R1, R2 and R10 as verified, with their findings",
+      "M0 Done when: `bun install` works with no ^/~ in package.json, and `bun run lint`, `bun run typecheck` and `bun run format` exit 0"
+    ],
+    "verify": [
+      "test ! -e app/spike && test ! -e app/api && echo 'spike code removed'",
+      "git status --short --ignored | grep -i spike  # expect no output",
+      "bun install --frozen-lockfile",
+      "grep -nE '\"[~^][0-9]' package.json  # expect no output",
+      "bun run format",
+      "bun run lint",
+      "bun run typecheck",
+      "bun --bun next build"
+    ],
+    "passes": false
+  },
+  {
+    "id": "M1-env",
+    "milestone": "M1",
+    "description": "lib/env.ts checkEnv with its unit tests",
+    "spec": ["§9 lib/env.ts", "§11 lib/env.test.ts", "D36"],
+    "dependsOn": ["M0-close"],
+    "acceptance": [
+      "checkEnv(valid env) → [] (D36)",
+      "Missing BETTER_AUTH_SECRET, a 31-char BETTER_AUTH_SECRET and missing BETTER_AUTH_URL each → exactly one message that names the variable and points to .env.example (§11)"
+    ],
+    "verify": ["bun test lib/env", "bun run lint", "bun run typecheck"],
+    "passes": false
+  },
+  {
+    "id": "M1-migrate",
+    "milestone": "M1",
+    "description": "lib/open-database.ts, the migration runner lib/migrate.ts and both SQL migrations, with migrate tests",
+    "spec": ["§8", "§9 lib/open-database.ts", "§9 lib/migrate.ts", "§11 lib/migrate.test.ts", "D27", "D45"],
+    "dependsOn": ["M0-close"],
+    "acceptance": [
+      "openDatabase(path) sets foreign_keys=ON and busy_timeout=5000, and journal_mode=WAL except for \":memory:\"; importing lib/open-database.ts opens nothing (§8, D45)",
+      "db/migrations/0001_better_auth.sql matches the M0-verified §8 schema; db/migrations/0002_note.sql matches §8 exactly (STRICT, both CHECKs, UNIQUE share_token, note_user_updated_idx)",
+      "migrate(db, \"db/migrations\") on a fresh DB applies 0001 then 0002 and returns both names; a second call returns [] (§11)",
+      "A migration with bad SQL (temp dir) throws, is rolled back and is not recorded in _migrations (§11)"
+    ],
+    "verify": ["bun test lib/migrate", "bun run lint", "bun run typecheck"],
+    "passes": false
+  },
+  {
+    "id": "M1-db-cli",
+    "milestone": "M1",
+    "description": "lib/db.ts singleton, scripts/migrate.ts, db:migrate wiring in package.json, and lib/testing/db.ts helpers; runs the M1 Done-when checks",
+    "spec": ["§4 scripts", "§9 lib/db.ts", "§9 scripts/migrate.ts", "§9 lib/testing/db.ts", "D29", "D36", "D45", "R7", "§14 M1 Done when"],
+    "dependsOn": ["M1-env", "M1-migrate"],
+    "acceptance": [
+      "package.json gets the db:migrate script, and dev/build/start run `bun run db:migrate &&` first, exactly as §4",
+      "With .env moved aside, `bun run build` exits 1 with a message naming BETTER_AUTH_SECRET (D36, §11 step 25)",
+      "With no data/ dir, `bun run db:migrate` creates data/app.db with user, session, account, verification, note and _migrations and prints the applied names; a second run applies nothing (§14 M1)",
+      "With data/ deleted, `bun run build` succeeds (first half of §11 step 26)",
+      "lib/db.ts exports db = openDatabase(process.env.DB_PATH ?? \"data/app.db\"), cached on globalThis in dev (D29, R7); scripts/migrate.ts uses lib/open-database.ts only (D45)",
+      "createTestDb() returns a migrated :memory: DB, and insertTestUser(db, email?) inserts a \"user\" row and returns its id; neither imports lib/db.ts (D45)",
+      "M1 Done when: `bun test lib/env lib/migrate` passes"
+    ],
+    "verify": [
+      "bun test lib/env lib/migrate",
+      "bun -e 'import { createTestDb, insertTestUser } from \"./lib/testing/db\"; const db = createTestDb(); const id = insertTestUser(db); console.log(db.query(`select count(*) as n from \"user\" where id = ?`).get(id))'  # { n: 1 }",
+      "rm -rf data && bun run db:migrate && bun run db:migrate  # second run applies nothing",
+      "mv .env .env.bak; bun run build; echo exit=$?; mv .env.bak .env  # exit=1, names BETTER_AUTH_SECRET",
+      "rm -rf data && bun run build",
+      "bun run lint",
+      "bun run typecheck"
+    ],
+    "passes": false
+  },
+  {
+    "id": "M2-share-token",
+    "milestone": "M2",
+    "description": "lib/share-token.ts (generate, format check, URL) with its unit tests",
+    "spec": ["§9 lib/share-token.ts", "§11 lib/share-token.test.ts", "D5"],
+    "dependsOn": ["M1-db-cli"],
+    "acceptance": [
+      "generateShareToken() returns 32 chars matching SHARE_TOKEN_PATTERN; 1 000 calls give 1 000 unique tokens (D5)",
+      "isShareTokenFormat rejects 31 and 33 chars and any +, / or = (§11)",
+      "buildShareUrl(\"abc…\", \"http://x\") → \"http://x/s/abc…\"; the default base is process.env.BETTER_AUTH_URL"
+    ],
+    "verify": ["bun test lib/share-token", "bun run lint", "bun run typecheck"],
+    "passes": false
+  },
+  {
+    "id": "M2-validation",
+    "milestone": "M2",
+    "description": "lib/notes/limits.ts, lib/notes/editor-extensions.ts and lib/notes/validation.ts with validation tests",
+    "spec": ["§9 lib/notes/limits.ts", "§9 lib/notes/editor-extensions.ts", "§9 lib/notes/validation.ts", "§11 lib/notes/validation.test.ts", "D4", "D18", "D26", "D40"],
+    "dependsOn": ["M1-db-cli"],
+    "acceptance": [
+      "lib/notes/limits.ts has no imports and exports TITLE_MAX_LENGTH, CONTENT_MAX_BYTES and utf8ByteLength exactly as §9",
+      "editorExtensions and EMPTY_DOC match §9 (heading levels [2, 3]; link, underline, horizontalRule disabled) (D4)",
+      "A 200-char title is ok and 201 → TITLE_TOO_LONG; \"  hi  \" → \"hi\"; \"   \" → \"\" (D18)",
+      "A doc whose normalized JSON is exactly 102 400 bytes → ok and 102 401 → CONTENT_TOO_LARGE, counting multi-byte chars as bytes; input under the limit that grows past it when normalized → CONTENT_TOO_LARGE (D40)",
+      "\"not json\", root `paragraph`, an `image` node and a `link` mark each → INVALID_CONTENT (D26)",
+      "A valid doc using every D4 format → ok, with unknown attrs dropped from value.content (D26)"
+    ],
+    "verify": ["bun test lib/notes/validation", "bun run lint", "bun run typecheck"],
+    "passes": false
+  },
+  {
+    "id": "M2-render",
+    "milestone": "M2",
+    "description": "lib/notes/render.ts renderNoteHtml with escaping tests",
+    "spec": ["§9 lib/notes/render.ts", "§11 lib/notes/render.test.ts", "D14", "R4", "PUB-4"],
+    "dependsOn": ["M2-validation"],
+    "acceptance": [
+      "Each D4 node and mark renders its expected tag from the PUB-4 list",
+      "Text `<script>alert(1)</script>` is HTML-escaped (PUB-4, R4)",
+      "A code-block `language` attr containing `\"><img src=x onerror=alert(1)>` is escaped (PUB-4, R4)",
+      "A doc using every format renders no tags outside the PUB-4 list",
+      "If the static renderer fails to escape, mark the task blocked and don't add @tiptap/html (R4; CLAUDE.md, Blocked tasks)"
+    ],
+    "verify": ["bun test lib/notes/render", "bun run lint", "bun run typecheck"],
+    "passes": false
+  },
+  {
+    "id": "M2-repo",
+    "milestone": "M2",
+    "description": "lib/notes/repo.ts raw-SQL functions with repo tests; runs the M2 Done-when checks",
+    "spec": ["§9 lib/notes/repo.ts", "§11 lib/notes/repo.test.ts", "D24", "D27", "D32", "D40", "D42", "NOTE-16", "SHARE-6", "§14 M2 Done when"],
+    "dependsOn": ["M2-share-token", "M2-validation", "M2-render"],
+    "acceptance": [
+      "createNote → title \"\", content EMPTY_DOC, crypto.randomUUID() id, created_at = updated_at = now (D27)",
+      "listNotes is ordered by updated_at desc and returns only the given user's notes",
+      "getNote / updateNote / deleteNote on another user's note → null / false / false, and the row is unchanged (D24)",
+      "updateNote sets updated_at and keeps share_token (NOTE-16)",
+      "enableShare twice → the same token (SHARE-6); enableShare on another user's note → null",
+      "After disableShare, getSharedNote(oldToken) → null; re-enabling with a new token returns the new token; disableShare on an owned private note → true and on another user's note → false (D42)",
+      "A direct INSERT with content over 102 400 bytes fails the CHECK (D40); getSharedNote after deleteNote → null; deleting a user row cascades to their notes",
+      "Share toggles don't change updated_at (D32); every query uses ? params, and owner queries include `AND user_id = ?`",
+      "M2 Done when: `bun test lib/share-token lib/notes` passes, and typecheck and lint are clean"
+    ],
+    "verify": ["bun test lib/share-token lib/notes", "bun run lint", "bun run typecheck"],
+    "passes": false
+  },
+  {
+    "id": "M3-auth-server",
+    "milestone": "M3",
+    "description": "lib/auth.ts, the /api/auth/[...all] handler and lib/session.ts (getCurrentUser, requireUser)",
+    "spec": ["§9 lib/auth.ts", "§9 app/api/auth/[...all]/route.ts", "§9 lib/session.ts", "D9", "D10", "D11", "D25", "D29", "D44", "R10", "§10"],
+    "dependsOn": ["M2-repo"],
+    "acceptance": [
+      "auth uses database: db (D29), emailAndPassword { enabled, autoSignIn }, the D44 customRules and any option recorded in SPEC §12 R10; there is no trustedOrigins (§10)",
+      "POST /api/auth/sign-up/email with a new email → 200 + session cookie; GET /api/auth/get-session with that cookie returns the user (D11)",
+      "lib/session.ts exports getCurrentUser (React cache() around auth.api.getSession) and requireUser with the §9 signatures; their behavior is checked through pages in M3-sign-up (AUTH-11) and M3-notes-shell (AUTH-12, D25)"
+    ],
+    "verify": [
+      "bun run dev  # then the sign-up curl from M0-spike-auth → 200 + set-cookie",
+      "grep -n trustedOrigins lib/auth.ts  # expect no output",
+      "bun run lint",
+      "bun run typecheck",
+      "bun run build"
+    ],
+    "passes": false
+  },
+  {
+    "id": "M3-auth-errors",
+    "milestone": "M3",
+    "description": "lib/auth-errors.ts authErrorMessage with its unit tests",
+    "spec": ["§7 Auth errors", "§9 lib/auth-errors.ts", "§11 lib/auth-errors.test.ts", "AUTH-3", "AUTH-4", "AUTH-5", "AUTH-8", "AUTH-14"],
+    "dependsOn": ["M2-repo"],
+    "acceptance": [
+      "Every row of the §7 auth-error table maps to its exact copy, including both duplicate-email codes and status 429 (AUTH-3, AUTH-4, AUTH-5, AUTH-8, AUTH-14)",
+      "null and unknown codes → \"Something went wrong. Please try again.\" (AUTH-14)",
+      "The duplicate-email code that better-auth 1.7.7 actually returns is confirmed in BASE_ERROR_CODES and noted in agent-progress.txt (§7)"
+    ],
+    "verify": ["bun test lib/auth-errors", "bun run lint", "bun run typecheck"],
+    "passes": false
+  },
+  {
+    "id": "M3-sign-up",
+    "milestone": "M3",
+    "description": "lib/auth-client.ts, components/message-region.tsx, components/auth-form.tsx and the /sign-up page",
+    "spec": ["§5", "§9 Components AuthForm", "MSG-1", "MSG-2", "AUTH-1..AUTH-5", "AUTH-9", "AUTH-11", "AUTH-14", "D9", "D30", "D47"],
+    "dependsOn": ["M3-auth-server", "M3-auth-errors"],
+    "acceptance": [
+      "/sign-up shows the AUTH-1 heading, fields, hint, button and \"Sign in\" link to /sign-in; its title is \"Create account – TinyNotes\" (§5)",
+      "A new email + \"password123\" → user created with name = email, session cookie set, browser at /notes (AUTH-2, D9, D30; landing on the /notes URL is enough, the page arrives in M3-notes-shell)",
+      "A duplicate email → \"An account with this email already exists.\" (AUTH-3); server-side PASSWORD_TOO_SHORT/LONG and INVALID_EMAIL (native validation bypassed) → the AUTH-4/AUTH-5 copy; a network failure → \"Something went wrong. Please try again.\" (AUTH-14)",
+      "Every error keeps the email and clears the password (D47)",
+      "While pending, the button is disabled and reads \"Creating account…\" (AUTH-9)",
+      "The form always renders an empty role=\"status\" and an empty role=\"alert\" above its submit button; an error stays while typing and is cleared when the next submit starts (MSG-1, MSG-2)",
+      "A signed-in user opening /sign-up → /notes (AUTH-11)"
+    ],
+    "verify": [
+      "bun run lint",
+      "bun run typecheck",
+      "bun run build",
+      "Playwright MCP (bun run dev): §11 steps 2 and 3; sign out by clearing cookies (CLAUDE.md, Playwright sign-out) in place of step 4; then step 5 and the MSG-2 check"
+    ],
+    "passes": false
+  },
+  {
+    "id": "M3-sign-in",
+    "milestone": "M3",
+    "description": "The /sign-in page, rendering AuthForm in sign-in mode",
+    "spec": ["§5", "§9 Components AuthForm", "AUTH-6", "AUTH-7", "AUTH-8", "AUTH-9", "AUTH-11", "AUTH-13", "AUTH-14", "D30", "D44", "D47"],
+    "dependsOn": ["M3-sign-up"],
+    "acceptance": [
+      "/sign-in shows the AUTH-6 heading, fields, button and \"Create one\" link to /sign-up; its title is \"Sign in – TinyNotes\" (§5)",
+      "Correct credentials → browser at /notes (AUTH-7, D30)",
+      "Wrong password and unknown email both → \"Invalid email or password.\"; the email is kept and the password cleared (AUTH-8, D47)",
+      "While pending, the button is disabled and reads \"Signing in…\" (AUTH-9)",
+      "Sign up Ada@Example.com, then sign in as ada@example.com → success (AUTH-13); a signed-in user opening /sign-in → /notes (AUTH-11)",
+      "In production mode, six wrong sign-ins within a minute → \"Too many attempts. Please wait a minute and try again.\" (AUTH-14, D44, §11 step 27)"
+    ],
+    "verify": [
+      "bun run lint",
+      "bun run typecheck",
+      "bun run build",
+      "Playwright MCP (bun run dev): §11 step 6 and the sign-in part of step 7, signing out by clearing cookies where needed (CLAUDE.md, Playwright sign-out)",
+      "Playwright MCP (bun run build && bun run start): §11 step 27"
+    ],
+    "passes": false
+  },
+  {
+    "id": "M3-notes-shell",
+    "milestone": "M3",
+    "description": "app/page.tsx redirect, default title in app/layout.tsx, stub app/notes/page.tsx, components/app-header.tsx and components/sign-out-button.tsx; runs the M3 Done-when checks",
+    "spec": ["§5", "NAV-1", "AUTH-10", "AUTH-12", "D22", "D25", "D48", "§10", "§14 M3 Done when"],
+    "dependsOn": ["M3-sign-in"],
+    "acceptance": [
+      "Signed out, / → /sign-in; signed in, / → /notes (NAV-1, D22)",
+      "Signed out, /notes → /sign-in through requireUser() (AUTH-12, D25)",
+      "Signed in, /notes shows the header (\"TinyNotes\" link to /notes, the user's email, \"Sign out\") and the heading \"Your notes\"; its title is \"Your notes – TinyNotes\" and the default title is \"TinyNotes\" (§5)",
+      "Click \"Sign out\" → /sign-in, and /notes afterwards → /sign-in (AUTH-10); the button is disabled while pending and re-enabled with no message if the request fails (D48)",
+      "M3 Done when: `bun test lib/auth-errors` passes; §11 steps 1–7 and 27 pass; the session cookie is HttpOnly and SameSite=Lax (context.cookies(), §10); lib/auth.ts has no trustedOrigins"
+    ],
+    "verify": [
+      "bun test lib/auth-errors",
+      "bun run lint",
+      "bun run typecheck",
+      "bun run build",
+      "Playwright MCP (bun run dev): §11 steps 1–7 and the MSG-2 check on an auth form",
+      "Playwright MCP (bun run build && bun run start): §11 step 27 and the cookie check from step 26"
+    ],
+    "passes": false
+  },
+  {
+    "id": "M4-lib",
+    "milestone": "M4",
+    "description": "lib/errors.ts, lib/call-action.ts and lib/format-date.ts with their unit tests",
+    "spec": ["§7 Server Action result", "§9 lib/call-action.ts", "§9 lib/format-date.ts", "§11 lib/call-action.test.ts", "§11 lib/format-date.test.ts", "D33", "D39"],
+    "dependsOn": ["M3-notes-shell"],
+    "acceptance": [
+      "ErrorCode, ActionResult and ERROR_MESSAGES match §7, with the exact copy for every code",
+      "callAction returns resolved { ok: true } and { ok: false } results unchanged; a rejected call → console.error + { ok: false, error: \"INTERNAL\" } (D39)",
+      "formatDateTime(Date.UTC(2026, 9, 10, 15, 45), \"UTC\") → \"Oct 10, 2026, 3:45 PM\" (D33)"
+    ],
+    "verify": ["bun test lib/call-action lib/format-date", "bun run lint", "bun run typecheck"],
+    "passes": false
+  },
+  {
+    "id": "M4-notes-list",
+    "milestone": "M4",
+    "description": "createNoteAction, components/new-note-button.tsx, the full app/notes/page.tsx list and app/error.tsx",
+    "spec": ["§9 lib/notes/actions.ts createNoteAction", "§7 Page-level errors", "NOTE-1", "NOTE-2", "NOTE-3", "NOTE-4", "D3", "D17", "D33"],
+    "dependsOn": ["M4-lib"],
+    "acceptance": [
+      "/notes lists the user's notes by updated_at desc; each row links to /notes/{id} and shows the title or \"Untitled\", \"Updated {date}\" and a \"Shared\" badge when isShared (NOTE-1; check the badge by setting share_token with SQL, end-to-end in M5)",
+      "With no notes: \"No notes yet. Create your first one.\" plus the \"New note\" button (NOTE-2)",
+      "User B's notes never appear in user A's list (NOTE-3)",
+      "Click \"New note\" → a note with title \"\" and EMPTY_DOC is created and the browser goes to /notes/{newId}; back on /notes it is the first row (NOTE-4, D17)",
+      "createNoteAction with no session (signed out in another tab) → redirect to /sign-in (§9)",
+      "An unexpected error in createNoteAction renders app/error.tsx with \"Something went wrong\" and a \"Try again\" button that calls reset(). Check it by temporarily adding `throw new Error(\"test\")` to createNoteAction, and remove that before committing (§7)"
+    ],
+    "verify": [
+      "bun run lint",
+      "bun run typecheck",
+      "bun run build",
+      "Playwright MCP (bun run dev): §11 step 2 (empty state), the \"New note\" part of step 8 (the /notes/{id} URL is enough; the page arrives in M4-editor-page), step 21's NOTE-3 check, and the temporary-throw check for app/error.tsx",
+      "grep -n 'throw new Error(\"test\")' lib/notes/actions.ts  # expect no output"
+    ],
+    "passes": false
+  },
+  {
+    "id": "M4-editor-page",
+    "milestone": "M4",
+    "description": "app/notes/[id]/page.tsx, components/note-editor.tsx (title + EditorContent), app/not-found.tsx and the .note-content CSS",
+    "spec": ["§9 Components NoteEditor", "§9 Rendering and data flow", "§7 Page-level errors", "NOTE-5", "NOTE-15", "AUTH-12", "D15", "D24", "D34", "R3"],
+    "dependsOn": ["M4-notes-list"],
+    "acceptance": [
+      "The owner opening /notes/{id} sees \"← All notes\" → /notes, the title input (aria-label \"Title\", placeholder \"Untitled\", maxlength 200) prefilled, and the editor (aria-label \"Note content\") prefilled with the saved content; the page title is \"{title or Untitled} – TinyNotes\" (NOTE-5, §5)",
+      "A non-existent id or another user's note → the generic 404 page with \"Page not found\", \"This page doesn't exist or you don't have access to it.\" and the link \"Go to TinyNotes\" → / (NOTE-15, D24)",
+      "Signed out, /notes/{any id} → /sign-in (AUTH-12)",
+      "No hydration warnings in the browser console (R3), and StarterKit shortcuts such as Ctrl/Cmd+B format text",
+      "Headings, lists, blockquotes and code are visibly styled through .note-content in app/globals.css (D34)"
+    ],
+    "verify": [
+      "bun run lint",
+      "bun run typecheck",
+      "bun run build",
+      "Playwright MCP (bun run dev): step 8 without the Sharing section and Save/Delete; step 21's NOTE-15 check; console has no hydration errors"
+    ],
+    "passes": false
+  },
+  {
+    "id": "M4-save",
+    "milestone": "M4",
+    "description": "saveNoteAction and the Save flow in components/note-editor.tsx (editor message region, edit counter)",
+    "spec": ["§9 lib/notes/actions.ts saveNoteAction", "§9 Components NoteEditor", "§7 Server Action result", "NOTE-7..NOTE-11", "NOTE-13", "MSG-1", "MSG-2", "D37", "D38"],
+    "dependsOn": ["M4-editor-page"],
+    "acceptance": [
+      "Click Save → the trimmed title and the content as of the click are saved through callAction(), and updated_at = now; while pending, \"Save\" reads \"Saving…\" and is disabled, but the title and editor stay editable (NOTE-7, D38)",
+      "On success \"Saved\" appears in the editor's role=\"status\" only if nothing changed since the click; any later edit clears it (NOTE-7, NOTE-8, D38)",
+      "The editor's message region next to Save always renders an empty role=\"status\" and an empty role=\"alert\", and shows at most one message (MSG-1, MSG-2, D37)",
+      "Reloading shows exactly the saved title and formatting (NOTE-9); a whitespace-only title is saved as \"\" and listed as \"Untitled\" (NOTE-10)",
+      "A 201-char title (maxlength removed) → \"Title must be 200 characters or fewer.\" and nothing is saved; the error stays while typing and the next Save replaces it (NOTE-11, MSG-2)",
+      "saveNoteAction passes validateNoteInput's INVALID_CONTENT through, and the editor shows its §7 copy (NOTE-13; the logic is unit-tested in M2-validation)",
+      "After a save's revalidation, the editor keeps its current content (no reset)"
+    ],
+    "verify": [
+      "bun run lint",
+      "bun run typecheck",
+      "bun run build",
+      "Playwright MCP (bun run dev): §11 steps 10–13"
+    ],
+    "passes": false
+  },
+  {
+    "id": "M4-save-errors",
+    "milestone": "M4",
+    "description": "Save failure paths in components/note-editor.tsx: client-side size check, session-expiry link, rejected calls and NOT_FOUND",
+    "spec": ["§9 Components NoteEditor", "§7 Server Action result", "NOTE-12", "NOTE-15", "D39", "D40", "R5"],
+    "dependsOn": ["M4-save"],
+    "acceptance": [
+      "~150 KB and ~2 MB of pasted text → \"This note is too large to save (max 100 KB).\" with no Save request in the network log (NOTE-12, D40)",
+      "Signed out in another tab, then Save → \"Your session has expired. Sign in again to continue.\" with a \"Sign in\" link that opens /sign-in in a new tab; after signing in there, Save works (§7 UNAUTHENTICATED, R5)",
+      "With the server stopped, Save → \"Something went wrong. Please try again.\" and the button reads \"Save\" again (D39)",
+      "Saving a note whose row was deleted → \"This note no longer exists.\" and nothing is written (NOTE-15). Delete the row with SQL, because the Delete button arrives in M4-delete"
+    ],
+    "verify": [
+      "bun run lint",
+      "bun run typecheck",
+      "bun run build",
+      "Playwright MCP (bun run dev): §11 steps 14, 23 and 24",
+      "NOT_FOUND: with the note open, run bun -e 'import { Database } from \"bun:sqlite\"; new Database(\"data/app.db\").run(\"DELETE FROM note WHERE id = ?\", [\"<id>\"])', then click Save"
+    ],
+    "passes": false
+  },
+  {
+    "id": "M4-delete",
+    "milestone": "M4",
+    "description": "deleteNoteAction and the Delete flow in components/note-editor.tsx; runs the M4 Done-when checks",
+    "spec": ["§9 lib/notes/actions.ts deleteNoteAction", "§9 Components NoteEditor", "NOTE-14", "NOTE-15", "D16", "D38", "D41", "§14 M4 Done when"],
+    "dependsOn": ["M4-save-errors"],
+    "acceptance": [
+      "Click \"Delete\" → confirm(\"Delete this note? This can't be undone.\"); Cancel → nothing changes (NOTE-14, D16)",
+      "OK → \"Delete\" reads \"Deleting…\", Save and Delete are disabled, and on success router.replace(\"/notes\") shows the list without the note (NOTE-14, D41)",
+      "While a save is pending Delete is disabled, and while a delete is pending Save is disabled (D38); a failed delete shows its error in the editor's message region",
+      "deleteNoteAction on a missing or not-owned id → NOT_FOUND and nothing is deleted (NOTE-15)",
+      "M4 Done when: `bun test lib/call-action lib/format-date` passes; §11 step 2 (empty state), step 8 without Sharing, steps 10–14, step 21's NOTE-3/NOTE-15 checks, step 22 without the share-link check, and steps 23–24 pass; Ctrl/Cmd+B formats text"
+    ],
+    "verify": [
+      "bun test lib/call-action lib/format-date",
+      "bun run lint",
+      "bun run typecheck",
+      "bun run build",
+      "Playwright MCP (bun run dev): §11 step 22 without the share-link check, then the M4 Done-when steps"
+    ],
+    "passes": false
+  },
+  {
+    "id": "M5-share-panel",
+    "milestone": "M5",
+    "description": "enableShareAction, disableShareAction and components/share-panel.tsx mounted on the editor page",
+    "spec": ["§9 lib/notes/actions.ts enableShareAction/disableShareAction", "§9 Components SharePanel", "SHARE-1..SHARE-7", "MSG-1", "NOTE-1", "D6", "D32", "D42"],
+    "dependsOn": ["M4-delete"],
+    "acceptance": [
+      "A private note shows the heading \"Sharing\", \"This note is private.\" and \"Create share link\" (SHARE-1)",
+      "\"Create share link\" → \"Creating link…\", then \"Anyone with this link can view this note.\", a read-only input (aria-label \"Share link\") containing {BETTER_AUTH_URL}/s/{token}, \"Copy link\" and \"Disable link\"; /notes shows the \"Shared\" badge (SHARE-2, NOTE-1)",
+      "\"Copy link\" → the clipboard holds the URL and the button reads \"Copied!\" for 2 s; a clipboard failure → \"Couldn't copy. Select the link and copy it manually.\" in the Sharing region (SHARE-3, MSG-1)",
+      "\"Disable link\" → \"Disabling…\", then the SHARE-1 state; it succeeds with no error even if another tab already disabled it (SHARE-4, D42)",
+      "Enable → disable → enable gives a different URL (SHARE-5); a double-click on \"Create share link\" yields one token (SHARE-6)",
+      "The panel shows the page-load state, then only its own action results, and ignores revalidated props (SHARE-7)",
+      "Share toggles don't change the note's position in /notes (D32)",
+      "The Sharing region always renders an empty role=\"status\" and an empty role=\"alert\", and action errors (UNAUTHENTICATED, NOT_FOUND, INTERNAL) appear there (MSG-1)"
+    ],
+    "verify": [
+      "bun run lint",
+      "bun run typecheck",
+      "bun run build",
+      "Playwright MCP (bun run dev): §11 step 8 (Sharing section), step 15, the two-tab part of step 18, and step 19's new-URL check",
+      "Clipboard, with Playwright MCP's run-code tool: allow it with `await page.context().grantPermissions([\"clipboard-read\", \"clipboard-write\"])` and read it back with `navigator.clipboard.readText()`; force a failure with `await page.evaluate(() => { navigator.clipboard.writeText = () => Promise.reject(new Error(\"denied\")) })`"
+    ],
+    "passes": false
+  },
+  {
+    "id": "M5-public-page",
+    "milestone": "M5",
+    "description": "components/note-content.tsx, app/s/[token]/page.tsx, app/s/[token]/not-found.tsx and the next.config.ts security headers; runs the M5 Done-when checks",
+    "spec": ["§9 Components NoteContent", "§9 Rendering and data flow", "§10 Headers", "PUB-1..PUB-5", "NOTE-16", "D7", "D8", "D14", "§14 M5 Done when"],
+    "dependsOn": ["M5-share-panel"],
+    "acceptance": [
+      "/s/{valid token}, signed in or out → 200 with the title as <h1> (or \"Untitled\"), \"Last updated {date}\", the rendered content and the footer \"Shared with TinyNotes\"; no edit controls, owner email/name, note id or user id in the HTML; title \"{title or Untitled} – TinyNotes\" (PUB-1, D8)",
+      "A malformed token (/s/short), an unknown or disabled token, or a deleted note → 404 with \"This note isn't available\" and \"The link may be wrong, or the owner stopped sharing it.\"; a malformed token makes no DB query (PUB-2)",
+      "After the owner edits and saves, reloading the shared page shows the new content and the note is still shared (PUB-3, NOTE-16, D7)",
+      "The page renders only PUB-4 tags, escaped (PUB-4), and has <meta name=\"robots\" content=\"noindex, nofollow\"> (PUB-5)",
+      "All routes send X-Content-Type-Options: nosniff and X-Frame-Options: DENY; /s/* also sends Referrer-Policy: no-referrer; next.config.ts has no serverActions.allowedOrigins (§10)",
+      "components/note-content.tsx holds the only dangerouslySetInnerHTML in the codebase (§10)",
+      "M5 Done when: §11 step 8 (Sharing), steps 15–20, step 21's share-link check and step 22's share-link → 404 check pass; the render tests pass"
+    ],
+    "verify": [
+      "bun test lib/notes/render",
+      "bun run lint",
+      "bun run typecheck",
+      "bun run build",
+      "curl -sI localhost:3000/s/<active token> | grep -iE 'referrer-policy|x-content-type-options|x-frame-options'  # all three",
+      "curl -s -o /dev/null -w '%{http_code}' localhost:3000/s/short  # 404",
+      "grep -rln dangerouslySetInnerHTML app components lib  # only components/note-content.tsx",
+      "Playwright MCP (bun run dev): §11 steps 8 (Sharing), 15–20, 21 (share link) and 22 (share link → 404)"
+    ],
+    "passes": false
+  },
+  {
+    "id": "M6-toolbar",
+    "milestone": "M6",
+    "description": "components/editor-toolbar.tsx mounted in components/note-editor.tsx; runs the M6 Done-when checks",
+    "spec": ["§9 Components EditorToolbar", "NOTE-6", "D4", "D35", "D43", "§14 M6 Done when"],
+    "dependsOn": ["M4-delete"],
+    "acceptance": [
+      "The toolbar (role=\"toolbar\", aria-label \"Formatting\") has the 12 NOTE-6 buttons with their exact visible labels and aria-labels (NOTE-6, D35)",
+      "Clicking a format button toggles that format on the selection; aria-pressed is \"true\" exactly when editor.isActive() is, so a half-bold range gives Bold aria-pressed=\"false\" (NOTE-6)",
+      "Buttons whose command can't run have aria-disabled=\"true\" and do nothing on click: Bold inside a code block, and Undo/Redo with no history (NOTE-6)",
+      "Keyboard: one Tab stop, and Tab returns to the last-focused button; ←/→ move and wrap; Home/End jump to the ends; aria-disabled buttons stay focusable (D43)",
+      "StarterKit shortcuts (Ctrl/Cmd+B) still work",
+      "M6 Done when: §11 step 9 passes in full; lint and typecheck are clean"
+    ],
+    "verify": [
+      "bun run lint",
+      "bun run typecheck",
+      "bun run build",
+      "Playwright MCP (bun run dev): §11 step 9 in full"
+    ],
+    "passes": false
+  },
+  {
+    "id": "M7-visual",
+    "milestone": "M7",
+    "description": "Visual polish: consistent layout, spacing and :focus-visible, and no horizontal scroll at phone width",
+    "spec": ["§14 M7", "§2 Out of scope (dark mode)"],
+    "dependsOn": ["M5-public-page", "M6-toolbar"],
+    "acceptance": [
+      "At 375 px width, /sign-in, /sign-up, /notes, /notes/{id} and /s/{token} have no horizontal page scroll: document.documentElement.scrollWidth <= window.innerWidth",
+      "Every interactive element shows a visible :focus-visible indicator (outline or ring) when reached by keyboard",
+      "Every page puts its content in the same max-width container (one shared class or layout component)",
+      "Light theme only: app/globals.css has no prefers-color-scheme: dark block and no dark: variants remain anywhere (§2 Out of scope)",
+      "No UI copy, role, aria attribute or behavior from §6 changes (class and CSS changes only)"
+    ],
+    "verify": [
+      "grep -rnE 'prefers-color-scheme|dark:' app components  # expect no output",
+      "bun run lint",
+      "bun run typecheck",
+      "bun run build",
+      "Playwright MCP (bun run dev): browser_resize 375x800; on each page evaluate document.documentElement.scrollWidth <= window.innerWidth and take a screenshot; Tab through /notes/{id} and screenshot the focus indicators"
+    ],
+    "passes": false
+  },
+  {
+    "id": "M7-readme-cleanup",
+    "milestone": "M7",
+    "description": "Add the §4 fresh-clone setup to README.md and remove scaffold leftovers",
+    "spec": ["§4 Environment (fresh clone)", "§14 M7"],
+    "dependsOn": ["M5-public-page", "M6-toolbar"],
+    "acceptance": [
+      "README.md has a Setup section with the §4 fresh-clone steps (bun install, copy .env.example to .env with a real secret, bun run build && bun run start or bun run dev) and the §11 test commands; the existing notes stay",
+      "The unused scaffold assets public/file.svg, globe.svg, next.svg, vercel.svg and window.svg are deleted, and nothing references them"
+    ],
+    "verify": [
+      "grep -rnE 'file.svg|globe.svg|next.svg|vercel.svg|window.svg' app components lib  # expect no output",
+      "bun run lint",
+      "bun run build"
+    ],
+    "passes": false
+  },
+  {
+    "id": "M7-checklist-1-14",
+    "milestone": "M7",
+    "description": "Full run, part 1: §11 steps 1–14 on a fresh DB in production mode",
+    "spec": ["§11", "§14 M7"],
+    "dependsOn": ["M7-visual", "M7-readme-cleanup"],
+    "acceptance": [
+      "With data/ deleted, `bun run build && bun run start`, then §11 steps 1–14 pass in order",
+      "Failures follow the Failing checks rule in CLAUDE.md, naming the failing requirement ID",
+      "data/ is kept at the end, because M7-checklist-15-24 continues with the same users and notes"
+    ],
+    "verify": ["rm -rf data && bun run build && bun run start", "Playwright MCP: §11 steps 1–14"],
+    "passes": false
+  },
+  {
+    "id": "M7-checklist-15-24",
+    "milestone": "M7",
+    "description": "Full run, part 2: §11 steps 15–24 in production mode, continuing from part 1's DB",
+    "spec": ["§11", "§14 M7"],
+    "dependsOn": ["M7-checklist-1-14"],
+    "acceptance": [
+      "With the DB that M7-checklist-1-14 left (don't delete data/), `bun run build && bun run start`, then §11 steps 15–24 pass in order. If ada@example.com or the \"Groceries\" note is missing, recreate them first with steps 2, 8 and 10",
+      "Failures follow the Failing checks rule in CLAUDE.md, naming the failing requirement ID"
+    ],
+    "verify": ["bun run build && bun run start", "Playwright MCP: §11 steps 15–24"],
+    "passes": false
+  },
+  {
+    "id": "M7-acceptance",
+    "milestone": "M7",
+    "description": "Full run, part 3: §11 steps 25–27 and the §10 security audit; runs the M7 Done-when checks",
+    "spec": ["§10", "§11", "§14 M7 Done when"],
+    "dependsOn": ["M7-checklist-15-24"],
+    "acceptance": [
+      "§10 audit: every SQL statement is parameterized (no interpolated values); components/note-content.tsx holds the only dangerouslySetInnerHTML; there is no trustedOrigins and no serverActions.allowedOrigins",
+      "No dependency outside §4 and no ^/~ in package.json (§4)",
+      "§11 steps 25–27 pass; step 26 deletes data/ and runs in production mode",
+      "Failures follow the Failing checks rule in CLAUDE.md, naming the failing requirement ID",
+      "M7 Done when: M7-checklist-1-14, M7-checklist-15-24 and this task together cover §11 steps 1–27; `bun test`, `bun run lint`, `bun run typecheck` and `bun run build` all exit 0"
+    ],
+    "verify": [
+      "bun test",
+      "bun run lint",
+      "bun run typecheck",
+      "grep -nE '\"[~^][0-9]' package.json  # expect no output",
+      "grep -rln dangerouslySetInnerHTML app components lib  # only components/note-content.tsx",
+      "grep -rnE 'trustedOrigins|allowedOrigins' lib app next.config.ts  # expect no output",
+      "§11 step 25 in the shell, then step 26 (rm -rf data && bun run build && bun run start) and step 27 with Playwright MCP"
+    ],
+    "passes": false
+  }
+]

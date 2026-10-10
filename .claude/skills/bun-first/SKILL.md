@@ -24,8 +24,8 @@ Assume Bun is available unless explicitly stated otherwise.
 ## Scripts & Tooling
 
 - **PREFER** `bun run` for scripts
-- **AVOID** Bun’s built-in test runner (`bun test`) => We'll use `Vitest` for testing
-- **AVOID** Bun’s build tool (`bun build`) => We'll use Vite
+- **USE** Bun’s built-in test runner (`bun test`) for tests. Don't add Vitest or Jest
+- **AVOID** Bun’s build tool (`bun build`) => Next.js builds the app (`bun --bun next build`)
 - Avoid introducing extra task runners unless required
 
 ## Runtime & APIs
