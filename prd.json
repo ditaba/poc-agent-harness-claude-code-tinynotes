@@ -115,7 +115,7 @@
       "Missing BETTER_AUTH_SECRET, a 31-char BETTER_AUTH_SECRET and missing BETTER_AUTH_URL each → exactly one message that names the variable and points to .env.example (§11)"
     ],
     "verify": ["bun test lib/env", "bun run lint", "bun run typecheck"],
-    "passes": false
+    "passes": true
   },
   {
     "id": "M1-migrate",

@@ -181,3 +181,19 @@ journal_mode=memory with the other two set; migrating a file DB returns both nam
 
 Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
 Next: M1-env, then M1-db-cli (needs both; it adds lib/db.ts, scripts/migrate.ts, lib/testing/db.ts, db:migrate).
+
+## 2026-10-10 – M1-env (passes)
+
+What changed:
+- lib/env.ts: checkEnv(env) returns one message per problem and [] when OK (D36). BETTER_AUTH_SECRET missing
+  (undefined or "") or shorter than 32 chars, and BETTER_AUTH_URL missing (undefined or ""), each give one
+  message that names the variable and points to .env.example. The too-short message gives the length, never the
+  value. DB_PATH is not checked because it is optional (lib/db.ts and scripts/migrate.ts default it to data/app.db, §9).
+- lib/env.test.ts: the §11 cases (valid → [], missing secret, 31-char secret, missing URL → one message each,
+  naming the variable and .env.example), plus empty secret = missing, DB_PATH optional, and {} → two messages.
+
+Verified: `bun test lib/env` 7 pass; `bun test` 10 pass (env + migrate); lint, typecheck, `bunx prettier --check .`
+and `bun run build` exit 0.
+
+Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
+Next: M1-db-cli (M1-env and M1-migrate both pass). It wires checkEnv into scripts/migrate.ts (exit 1 on problems).
