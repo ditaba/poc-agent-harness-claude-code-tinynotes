@@ -54,7 +54,18 @@ MCPs and settings must be configured locally in this project:
 Ralph stops when:
 
 - All tasks are marked complete, OR
+- A task is blocked and needs your decision (exit code 2), OR
 - It reaches the iteration limit
+
+### Blocked tasks
+
+Some tasks have "stop and ask" conditions (for example, `bun:sqlite` failing in Next.js under every fallback). Ralph runs non-interactively, so it can't ask. Instead it sets a `"blocked"` field on the task with the reason, keeps `passes: false`, logs it in `agent-progress.txt`, commits, and stops the loop.
+
+To continue:
+
+1. Read the reason: `grep -n '"blocked"' prd.json`
+2. Make the decision, and update `SPEC.md` or `prd.json` if needed
+3. Delete the task's `"blocked"` field and run `./ralph.sh` again
 
 ## Task Selection
 
@@ -80,7 +91,7 @@ This prevents "it compiles so it works" assumptions.
 - **`prd.json`** - Task list with `passes: false/true`
 - **`agent-progress.txt`** - Progress log
 - **`ralph.sh`** - The loop script
-- **`SPEC.MD`** - Technical specification
+- **`SPEC.md`** - Technical specification
 - **`.mcp.json`** - MCP configurations
 - **`.claude/settings.json`** - Sandbox and permissions
 
@@ -118,7 +129,7 @@ git reset --hard HEAD~3    # Undo last 3 commits
 ## Limitations
 
 - Works best with clear, structured requirements
-- Can't design architecture from scratch (you provide SPEC.MD)
+- Can't design architecture from scratch (you provide SPEC.md)
 - Needs good initial codebase quality
 - Benefits from occasional human review
 
