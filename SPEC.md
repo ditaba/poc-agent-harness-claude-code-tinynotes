@@ -63,7 +63,7 @@ Notes are stored as TipTap JSON in SQLite and rendered as HTML. The app runs loc
 | D16 | Delete is confirmed with native `confirm()`. | Confirmed |
 | D17 | "New note" immediately inserts an empty note and redirects to `/notes/{id}`. | Confirmed |
 | D18 | Limits: title ≤ 200 characters (after trim, JS `.length`); content ≤ 100 KB (102 400 bytes, UTF-8 of the normalized JSON string that is stored, see D40). Enforced on the server. | Confirmed |
-| D19 | Pin the latest stable versions, except TypeScript 5.9.3 and ESLint 9.39.5 (TS 7 / ESLint 10 not verified with Next tooling). | Confirmed |
+| D19 | Pin the latest stable versions, except TypeScript 5.9.3 and ESLint 9.39.5 (TS 7 / ESLint 10 not verified with Next tooling). Bun is 1.3.14, because 1.3.12 can't run production builds (R1). | Confirmed |
 | D20 | Testing: `bun test` unit tests for logic + DB layer, plus a manual checklist (run via Playwright MCP). | Confirmed |
 | D21 | Local only: `bun run build && bun run start`. No deadline. | Confirmed |
 | D22 | `/` only redirects: signed in → `/notes`, signed out → `/sign-in`. | Confirmed |
@@ -102,7 +102,7 @@ All versions are pinned exactly in `package.json` (no `^` or `~`).
 
 | Package | Version | Role |
 | ------- | ------- | ---- |
-| Bun (runtime + package manager + test runner) | 1.3.12 | `"packageManager": "bun@1.3.12"` |
+| Bun (runtime + package manager + test runner) | 1.3.14 | `"packageManager": "bun@1.3.14"` |
 | `bun:sqlite` | built into Bun | Database driver |
 | `next` | 16.4.0 | App Router, Server Actions |
 | `react`, `react-dom` | 19.3.0 | UI |
@@ -114,7 +114,7 @@ All versions are pinned exactly in `package.json` (no `^` or `~`).
 | `@tiptap/static-renderer` | 3.31.4 | Server-side JSON → HTML |
 | `tailwindcss`, `@tailwindcss/postcss` | 4.3.3 | Styling |
 | `typescript` (dev) | 5.9.3 | Type checking |
-| `@types/bun` (dev) | 1.3.12 | Bun types |
+| `@types/bun` (dev) | 1.3.14 | Bun types |
 | `@types/node` (dev) | 24.19.2 | Node types (Next requires them) |
 | `@types/react`, `@types/react-dom` (dev) | 19.3.0 | React types |
 | `eslint` (dev) | 9.39.5 | Linting |
@@ -688,7 +688,7 @@ Steps marked **(slow)** run with every POST request delayed by 1.5 s, so pending
 
 | ID | Risk | Mitigation |
 | -- | ---- | ---------- |
-| R1 | **`bun:sqlite` inside Next.js** (highest risk): Turbopack may fail to resolve `bun:sqlite`, or code may run on Node instead of Bun. Only community docs cover this; it is not verified for Next 16.4. | M0 spike: a throwaway page runs `select sqlite_version()` under `bun --bun next dev` **and** `build` + `start`. If it fails, try in order: `serverExternalPackages: ["bun:sqlite"]` in `next.config.ts`, then `next dev --webpack` / `next build --webpack`. If all fail, stop and ask (don't switch DB drivers without approval). |
+| R1 | **`bun:sqlite` inside Next.js** (highest risk): Turbopack may fail to resolve `bun:sqlite`, or code may run on Node instead of Bun. Only community docs cover this; it is not verified for Next 16.4. | M0 spike: a throwaway page runs `select sqlite_version()` under `bun --bun next dev` **and** `build` + `start`. If it fails, try in order: `serverExternalPackages: ["bun:sqlite"]` in `next.config.ts`, then `next dev --webpack` / `next build --webpack`. If all fail, stop and ask (don't switch DB drivers without approval). **Verified (M0)** with Bun 1.3.14 and an unchanged `next.config.ts` (no `serverExternalPackages`, no `--webpack`): `/spike` shows SQLite 3.53.0 under `bun --bun next dev` and under `bun --bun next build` + `next start`. Bun 1.3.12 failed every production build (`TypeError: Expected CommonJS module to have a function wrapper` when loading react-dom 19.3 production server builds, a Bun bug fixed in 1.3.14), so the runtime pin in §4 is 1.3.14 and must stay ≥ 1.3.14. |
 | R2 | better-auth's expected schema differs from the hand-written `0001` SQL. | In M0, generate the schema with the better-auth CLI for the pinned version and diff it. The spike signs up and signs in one user against the migrated DB. |
 | R3 | TipTap hydration mismatch in Next SSR. | `immediatelyRender: false`; the editor lives only in a client component. |
 | R4 | The static renderer doesn't escape some attribute or text. | Unit tests in `render.test.ts` (escaping cases). Schema normalization drops unknown attrs. If escaping fails, stop and ask before adding `@tiptap/html`. |

@@ -80,3 +80,27 @@ lint and typecheck exit 0; `bun test` reports "0 test files" (expected in M0).
 package-lock.json). They were left alone and are not part of this commit. M0-spike-sqlite still has its
 "blocked" field, so it wasn't picked. A human should finish the unblock (D19/§12 R1 wording, remove "blocked")
 before the next iteration. Every other remaining task depends on it.
+
+## 2026-10-10 – M0-spike-sqlite (passes, rerun after the human unblock)
+
+Human unblock (staged by the human, committed with this task because it is the unblock): packageManager
+bun@1.3.14 and @types/bun 1.3.14 in package.json and SPEC §4, plus "blocked" removed from prd.json.
+
+What changed:
+- bun.lock: `bun install` synced it to @types/bun / bun-types 1.3.14 (it still had 1.3.12, so
+  `bun install --frozen-lockfile` would have failed).
+- SPEC §12 R1 says "Verified (M0)", and §3 D19 notes that Bun is 1.3.14 because 1.3.12 can't run production builds.
+- next.config.ts unchanged: no serverExternalPackages and no --webpack needed. app/spike/page.tsx unchanged
+  (M0-close deletes it).
+- .gitignore: added /.playwright-mcp/ (Playwright MCP writes page snapshots there; untracked, they'd fail
+  `prettier --check .` and show up in git status in every UI task).
+
+Verified (local Bun 1.3.14, Windows):
+- `bun --bun next dev` → GET /spike 200: sqlite_version 3.53.0, runtime bun 1.3.14.
+- `bun --bun next build` exits 0 (/spike is ƒ dynamic); `bun --bun next start` → GET /spike 200, same output.
+  Also checked in Playwright MCP under next start: both values render, no console errors.
+- bun install --frozen-lockfile, bun run lint, bun run typecheck exit 0; `bunx prettier --check .` is clean.
+
+Left alone (staged human changes that aren't part of this task, not committed): AGENTS.md (written by next dev),
+README.md, package-lock.json (an npm lockfile, which a Bun project doesn't need. A human should decide whether to keep it).
+Next: M0-spike-auth (its deps M0-spike-sqlite and M0-env now pass).
