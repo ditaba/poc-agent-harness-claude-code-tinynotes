@@ -491,3 +491,43 @@ Verified with Playwright MCP (`bun run dev`):
 Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
 Next: M3-sign-in (just app/sign-in/page.tsx with <AuthForm mode="sign-in">, title "Sign in – TinyNotes", AUTH-11
 redirect; AuthForm's sign-in copy and signIn.email call exist but haven't been exercised in a browser yet).
+
+## 2026-10-11 – M3-sign-in (passes)
+
+Picked because its only dep, M3-sign-up, passes, and M3-notes-shell and everything after it depend on it.
+
+What changed:
+- app/sign-in/page.tsx: metadata title "Sign in – TinyNotes"; getCurrentUser() → redirect("/notes") (AUTH-11);
+  renders <AuthForm mode="sign-in">. Same layout as /sign-up. AuthForm needed no change: its sign-in copy, the
+  signIn.email call and the error handling from M3-sign-up already covered AUTH-6..AUTH-9 and AUTH-14.
+
+Verified with Playwright MCP (`bun run dev`):
+- AUTH-6: heading "Sign in to TinyNotes", Email (type=email, required), Password (type=password, required, no
+  minlength/maxlength, autocomplete current-password, no hint), "Sign in", "No account yet? Create one" → /sign-up;
+  title "Sign in – TinyNotes". The empty status + alert pair sits above the submit button (MSG-1).
+- Setup: signed up Ada@Example.com / password123 through /sign-up, then cleared cookies.
+- Step 6: wrong password for ada@example.com and nobody@example.com → both 401 INVALID_EMAIL_OR_PASSWORD (identical
+  bodies) → "Invalid email or password.", email kept, password cleared (AUTH-8, D47).
+- MSG-2: the error stayed while typing in both fields; on the next (slow) submit the alert was empty while the
+  button read "Signing in…" and was disabled.
+- Step 7 sign-in part (slow): ADA@example.com / password123 → "Signing in…" disabled, then /notes (404 until
+  M3-notes-shell) (AUTH-7, AUTH-9, AUTH-13, D30). The DB has one user (email "ada@example.com") and both sessions
+  belong to it. Cookie better-auth.session_token HttpOnly, SameSite=Lax. Signed in, /sign-in → 307 to /notes (AUTH-11).
+- Extra: malformed email with native validation bypassed → 400 INVALID_EMAIL → "Enter a valid email address."
+  (AUTH-5, sign-in path); aborted request → "Something went wrong. Please try again." and the button resets (AUTH-14).
+- Console: only the intended 4xx/aborted requests, the logged "Failed to fetch", and /notes 404s. No hydration warnings.
+  Gotcha for Playwright: Next's route announcer is also role="alert", so scope alert/status lookups to the form.
+
+Verified with Playwright MCP (`bun run build && bun run start`):
+- Step 27: six wrong sign-ins in about 1.2 s → 401 ×5 ("Invalid email or password."), then 429 → "Too many attempts. Please
+  wait a minute and try again.", email kept and password cleared each time (AUTH-14, D44).
+- After waiting 62 s, a correct sign-in → 200, /notes, HttpOnly + SameSite=Lax cookie; /sign-in → /notes (AUTH-11).
+
+Note: better-auth lowercases `email` but stores `name` exactly as typed (name "Ada@Example.com"). D9 only says
+name = email, and nothing displays name (the header uses email), so this was left as is.
+
+Checks: bun test (110 pass), lint, typecheck, `bunx prettier --check .` and `bun run build` exit 0 (/sign-in is ƒ dynamic).
+Test data removed afterwards: data/app.db has no users, sessions, accounts or notes.
+
+Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
+Next: M3-notes-shell (app/page.tsx redirect, default title, stub /notes, AppHeader, SignOutButton; runs M3 Done when).
