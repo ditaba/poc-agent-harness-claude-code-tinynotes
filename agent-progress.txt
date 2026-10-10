@@ -440,3 +440,54 @@ no users, sessions or accounts).
 Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
 Next: M3-sign-up (deps M3-auth-server and M3-auth-errors pass). AuthForm passes authClient's `error` straight to
 authErrorMessage, and null when the call throws (AUTH-14).
+
+## 2026-10-11 – M3-sign-up (passes)
+
+Picked because both deps (M3-auth-server, M3-auth-errors) pass and every later UI task depends on it.
+
+What changed:
+- lib/auth-client.ts: `authClient = createAuthClient()` from better-auth/react, no baseURL (D11). In the browser
+  better-auth uses window.location.origin; during SSR it reads BETTER_AUTH_URL, else falls back to "/api/auth".
+- components/message-region.tsx: MessageRegion({ message }) with `Message = { type: "status" | "error"; content:
+  ReactNode }`. It always renders <p role="status"> and <p role="alert"> (empty until used) and shows at most one
+  message (MSG-1/2). content is a ReactNode so M4 can put the UNAUTHENTICATED "Sign in" link in the editor region.
+  No hooks, so it works from client and server components.
+- components/auth-form.tsx ("use client"): AuthForm({ mode }) for both modes. One COPY table holds heading, submit,
+  pending label, prompt and link per mode, so M3-sign-in only needs app/sign-in/page.tsx. Controlled email/password.
+  Sign-up only: minLength 8 / maxLength 128 and the "At least 8 characters." hint via aria-describedby (sign-in has no
+  length attrs, so AUTH-8 isn't preempted by native validation). autocomplete new-password / current-password.
+  Submit: preventDefault → clear region → useTransition(async): authClient.signUp.email({ email, password, name: email })
+  or signIn.email; error → authErrorMessage(error); a thrown call (network) → console.error + authErrorMessage(null).
+  The post-await updates run in a nested startTransition, so on success router.push("/notes") + router.refresh() keep
+  the button pending until /notes loads (no flash of an enabled "Create account" that could re-submit). On error:
+  alert message, password cleared, email kept (D47); typing doesn't clear it (MSG-2).
+- app/sign-up/page.tsx: metadata title "Create account – TinyNotes"; getCurrentUser() → redirect("/notes") (AUTH-11);
+  renders <AuthForm mode="sign-up">. app/layout.tsx untouched (the default "TinyNotes" title is M3-notes-shell's).
+
+Verified with Playwright MCP (`bun run dev`):
+- AUTH-1: heading, Email (type=email, required), Password (type=password, required, minlength 8, maxlength 128,
+  described by "At least 8 characters."), "Create account", "Already have an account? Sign in" → /sign-in; title
+  "Create account – TinyNotes". The empty status + alert pair sits above the submit button (MSG-1).
+- Steps 2+3 (slow POSTs): the button read "Creating account…" and was disabled, then the browser was at /notes (404
+  until M3-notes-shell, as allowed). The user row has name = email, there is one session, and the cookie is
+  better-auth.session_token, HttpOnly, SameSite=Lax (AUTH-2, D9, D30).
+- AUTH-11: signed in, /sign-up → redirect to /notes.
+- Cookies cleared (in place of step 4), step 5: duplicate ada@example.com → "An account with this email already
+  exists." on /sign-up, email kept, password cleared (AUTH-3, D47).
+- MSG-2: the error stayed while typing in both fields. On the next (slow) submit the alert was empty while
+  "Creating account…" showed, then the error came back.
+- Native validation bypassed (form.noValidate, maxlength removed): malformed email → VALIDATION_ERROR → "Enter a valid
+  email address."; 5 chars → PASSWORD_TOO_SHORT, 129 chars → PASSWORD_TOO_LONG, empty → VALIDATION_ERROR
+  [body.password], each → "Password must be 8–128 characters." (AUTH-4, AUTH-5). Aborted request → "Something went
+  wrong. Please try again." (AUTH-14). Every case kept the email and cleared the password, and the button reset.
+- Native validation alone (no bypass): short password or malformed email → no sign-up request at all.
+- Console: only the intended 4xx/aborted resource errors, /notes 404s and the scaffold's Geist font-preload warnings.
+  No hydration warnings.
+- bun test (110 pass), lint, typecheck, `bunx prettier --check .` and `bun run build` exit 0 (/sign-up is ƒ dynamic).
+- Test data removed afterwards: data/app.db has no users, sessions, accounts or notes. Gotcha: an ad-hoc
+  `new Database("data/app.db")` has foreign_keys off, so deleting "user" there doesn't cascade. Use openDatabase(),
+  or delete session/account explicitly.
+
+Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
+Next: M3-sign-in (just app/sign-in/page.tsx with <AuthForm mode="sign-in">, title "Sign in – TinyNotes", AUTH-11
+redirect; AuthForm's sign-in copy and signIn.email call exist but haven't been exercised in a browser yet).
