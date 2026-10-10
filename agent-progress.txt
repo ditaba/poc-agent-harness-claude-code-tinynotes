@@ -155,3 +155,29 @@ M0 Done when is met.
 
 Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
 Next: M1-env and M1-migrate (both depend only on M0-close), then M1-db-cli.
+
+## 2026-10-10 – M1-migrate (passes)
+
+What changed:
+- lib/open-database.ts: openDatabase(path) = new Database(path) + PRAGMA foreign_keys = ON, journal_mode = WAL
+  (skipped for ":memory:") and busy_timeout = 5000. Nothing runs on import (D45).
+- lib/migrate.ts: migrate(db, dir) creates _migrations (§8), reads the *.sql files in dir that aren't recorded,
+  sorts them by filename and applies each one in its own db.transaction() (file SQL + the _migrations row).
+  A failing file throws `Migration <name> failed` with the SQLite error as `cause`; earlier files stay applied.
+  Returns the names applied in this call.
+- db/migrations/0001_better_auth.sql and 0002_note.sql: copied verbatim from §8 (0002 keeps its comments).
+- lib/migrate.test.ts: the three §11 cases. The failing-migration case uses a temp dir with 0001_ok.sql and a
+  0002_bad.sql whose first statement succeeds and second fails, so it proves the partial file is rolled back.
+
+Findings (M1 "main risk"):
+- bun:sqlite's db.run(sql) with no bindings executes every statement in a multi-statement string (comments OK).
+- Inside db.transaction(), both a syntax error and a runtime error in a later statement roll back the earlier
+  statements of the same file (DDL included).
+
+Verified: `bun test lib/migrate` 3 pass; lint, typecheck, `bunx prettier --check .` and `bun run build` exit 0.
+Manual (bun -e): a file DB reports foreign_keys=1, journal_mode=wal, busy_timeout=5000; ":memory:" reports
+journal_mode=memory with the other two set; migrating a file DB returns both names and sqlite_master holds the
+§8 note table (STRICT, both CHECKs, UNIQUE share_token) and note_user_updated_idx. No data/ dir is created.
+
+Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
+Next: M1-env, then M1-db-cli (needs both; it adds lib/db.ts, scripts/migrate.ts, lib/testing/db.ts, db:migrate).
