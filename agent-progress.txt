@@ -136,3 +136,22 @@ Findings:
 
 Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
 Next: M0-close (delete app/spike/, app/api/ and data/spike-auth.db, then run the M0 Done-when checks).
+
+## 2026-10-10 – M0-close (passes)
+
+What changed:
+- Deleted the spike: app/spike/page.tsx, app/spike/auth.ts and app/api/auth/[...all]/route.ts (M3-auth-server
+  recreates the route on lib/auth.ts). Deleted data/ (it held only the ignored data/spike-auth.db; M1-db-cli's
+  db:migrate creates data/app.db) and the ignored .next/ cache (it had generated route types for /spike).
+- next.config.ts stays unchanged: R1 and R10 needed no config change (§12). SPEC §12 already marks R1, R2 and
+  R10 "Verified (M0)" with their findings, so SPEC is unchanged.
+
+Verified (Bun 1.3.14): app/spike and app/api are gone; `git status --short --ignored | grep -i spike` shows only
+the staged deletions before the commit and nothing after it; bun install --frozen-lockfile exits 0;
+no ^/~ in package.json; `bun run format` changes nothing and `bunx prettier --check .` is clean; lint and
+typecheck exit 0 (typecheck again after the build regenerated .next/types); `bun --bun next build` exits 0 with
+only ○ / and ○ /_not-found. `bun test` reports "0 test files" (expected until M1).
+M0 Done when is met.
+
+Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
+Next: M1-env and M1-migrate (both depend only on M0-close), then M1-db-cli.

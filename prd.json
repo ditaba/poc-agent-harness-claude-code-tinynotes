@@ -102,7 +102,7 @@
       "bun run typecheck",
       "bun --bun next build"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "M1-env",
