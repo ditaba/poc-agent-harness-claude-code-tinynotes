@@ -581,3 +581,40 @@ Test data removed afterwards: data/app.db has no users, sessions, accounts or no
 
 Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
 Next: M4-lib (lib/errors.ts, lib/call-action.ts, lib/format-date.ts + tests), then M4-notes-list.
+
+## 2026-10-11 – M4-lib (passes)
+
+Picked because its only dep, M3-notes-shell, passes, and every other M4 task depends on it (actions return
+ActionResult, the editor wraps calls in callAction, the list shows formatDateTime).
+
+What changed:
+- lib/errors.ts: ErrorCode, ActionResult<T = undefined> and ERROR_MESSAGES exactly as §7, no imports (client + server).
+  ERROR_MESSAGES.UNAUTHENTICATED is only the sentence; the editor adds the "Sign in" link (new tab) in M4-save-errors.
+  validation.ts's NoteInputError is a subset of ErrorCode, so saveNoteAction can return it as is.
+  ActionResult<undefined> still needs `data`: deleteNoteAction/disableShareAction return { ok: true, data: undefined }.
+- lib/call-action.ts: callAction(run) = try { return await run() } catch → console.error("Action call failed:", error)
+  + { ok: false, error: "INTERNAL" } (D39). The `await` is required: `return run()` would let the rejection escape the
+  try. A run() that throws synchronously is caught too. Plain module (no directive), imported by client components.
+- lib/format-date.ts: formatDateTime(ms, timeZone?) = Intl.DateTimeFormat("en-US", { dateStyle: "medium",
+  timeStyle: "short", timeZone }).format(ms) (D33). An undefined timeZone means the server's local zone.
+- lib/call-action.test.ts: the §11 cases (resolved ok: true and ok: false returned unchanged, same object, no log;
+  rejected → INTERNAL + one console.error with the error), plus a synchronous throw. console.error is spied and silenced.
+- lib/format-date.test.ts: the §11 case, midnight/noon (12:05 AM / PM), the default local zone (TZ=America/New_York →
+  11:45 AM) and an explicit zone winning over it (Asia/Tokyo → "Oct 11, 2026, 12:45 AM").
+
+Findings:
+- Bun 1.3.14's Intl (ICU 73.2) prints a plain space before "AM"/"PM", not U+202F like Node on ICU 72+, so the §11 string
+  matches exactly. Pages format dates on the server under Bun (D28, D33), so there is no hydration mismatch either.
+- bun test runs in UTC. Assigning process.env.TZ changes the default zone at runtime, but deleting it does NOT reset the
+  zone, so the test sets the original zone back before deleting the variable. A probe test appended after the TZ
+  tests confirmed TZ is unset and the zone is UTC again (no leak into other test files in the same process).
+
+Mutation runs (each restored): no try/catch, ok: false mapped to INTERNAL, no console.error, `return run()` without
+await, timeZone ignored, timeZone defaulting to "UTC", a 24-hour clock and dateStyle "long" each fail ≥ 1 test.
+ERROR_MESSAGES was compared with the §7 table parsed from SPEC.md: same 6 codes, same order, identical copy.
+
+Verified: `bun test lib/call-action lib/format-date` 8 pass; `bun test` 118 pass; lint, typecheck (also after the build),
+`bunx prettier --check .` and `bun run build` exit 0. No UI change, so no Playwright run.
+
+Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
+Next: M4-notes-list (createNoteAction, NewNoteButton, the full /notes list with formatDateTime, app/error.tsx).
