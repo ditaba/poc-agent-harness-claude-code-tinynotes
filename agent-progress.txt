@@ -673,3 +673,63 @@ Test data removed afterwards: data/app.db has no users, sessions, accounts or no
 
 Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
 Next: M4-editor-page (app/notes/[id]/page.tsx, NoteEditor with title + EditorContent, app/not-found.tsx, .note-content CSS).
+
+## 2026-10-11 – M4-editor-page (passes)
+
+Picked because its only dep, M4-notes-list, passes, and every later M4 task (save, save errors, delete) and M5/M6
+build on the editor page.
+
+What changed:
+- app/notes/[id]/page.tsx: a React cache()'d loadNote(id) = requireUser() (AUTH-12) → getNote(db, user.id, id) →
+  notFound() when null (NOTE-15, D24), shared by generateMetadata (title "{title or Untitled} – TinyNotes", §5) and
+  the page, so one request does one lookup. Renders AppHeader, the "← All notes" link to /notes and
+  <NoteEditor note={{ id, title, content }}> (the share token isn't passed to the client). Props are typed by hand
+  ({ params: Promise<{ id: string }> }) rather than the generated PageProps<>, so tsc doesn't depend on route types
+  that only exist after next dev/build has seen the new route.
+- components/note-editor.tsx ("use client"): controlled title input (aria-label "Title", placeholder "Untitled",
+  maxLength TITLE_MAX_LENGTH) and EditorContent from useEditor({ extensions: editorExtensions, content: note.content,
+  immediatelyRender: false, editorProps.attributes: class "note-content …", aria-label "Note content",
+  aria-multiline "true" }) as §9. TipTap adds role="textbox" itself (Editor.getEditorViewAttributes), so the
+  aria-label names a textbox. useEditor has no deps and the title is useState(note.title), so later props
+  (M4-save's revalidation) never reset either. The EditorContent box (border, min-h-64, focus-within ring) is
+  server-rendered, so nothing shifts when the editor mounts. It's a grid, so the editor stretches to the box and a
+  click anywhere in it focuses the editor. No Save/Delete yet (M4-save, M4-delete).
+- app/not-found.tsx: "Page not found", "This page doesn't exist or you don't have access to it." and "Go to
+  TinyNotes" → / (§7). No header, so a not-owned note looks exactly like a missing one.
+- app/globals.css: `.note-content` in @layer components with @apply (D34): block spacing (first child mt-0), h2/h3
+  sizes, list-disc/list-decimal with padding, blockquote left border, inline code (`:not(pre) > code`) and pre
+  blocks. Only the D4 formats; strong/em/s keep the browser defaults. The dark-mode block stays for M7-visual.
+
+Verified with Playwright MCP (`bun run dev`, fresh DB):
+- Signed out: curl /notes/{any id} → 307 to /sign-in (AUTH-12).
+- Step 8 without Sharing/Save/Delete: "New note" → /notes/{uuid}, title "Untitled – TinyNotes", "← All notes" →
+  /notes, empty title input with placeholder "Untitled", maxLength 200, aria-label "Title"; editor role=textbox,
+  aria-label "Note content", content <p></p>.
+- Prefill (title and every D4 format written with validateNoteInput + updateNote, since Save arrives in M4-save):
+  after reload, the title input shows "Groceries <i>x</i>" as literal text, the page title matches, and the editor
+  holds h2, strong, em, s, code, br, h3, ul, ol, blockquote and pre/code, with "<b>not bold</b>" as escaped text.
+  Computed styles: h2 20px/600, h3 18px/600, ul disc, ol decimal (24px padding), blockquote 4px border, pre and
+  inline code on zinc-100 in Geist Mono. Screenshot checked.
+- Ctrl+B and Ctrl+I format text (StarterKit shortcuts). On an empty note, a click near the bottom of the box
+  focuses the editor.
+- NOTE-15 / step 21: as Ada, a non-existent uuid and "not-a-uuid" → HTTP 404 with the generic page (title
+  "TinyNotes", noindex meta added by Next); "Go to TinyNotes" → / → /notes. Bob opening Ada's note → the same 404.
+- Client navigation list → editor → "← All notes" → row → editor works.
+- Console: only the expected 404 resource errors. No hydration warnings (R3).
+Verified with Playwright MCP (`bun run build && bun run start`): signed-out 307; owner page 200 with the right
+title; Ctrl+B works; a missing note → 404 "Page not found"; no page errors.
+
+Playwright gotchas:
+- Trusted input stopped reaching the page again (the M4-notes-list gotcha). browser_close + navigate fixed it.
+- Keys fired back to back with no await in between (click, End, Enter, Ctrl+B, type) can lose the End: ProseMirror
+  reads DOM selection changes on the async selectionchange event, so Enter splits at the old cursor. The same
+  sequence with a DOM read between keys works every time. That's a test artifact, not an editor bug. For M4-save
+  and M6 tests, read state between key presses or select with editor commands.
+
+Checks: bun test (118 pass), lint, typecheck (before and after the build), `bunx prettier --check .` and
+`bun run build` exit 0 (/notes/[id] is ƒ dynamic).
+Test data removed afterwards: data/app.db has no users, sessions, accounts or notes.
+
+Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
+Next: M4-save (saveNoteAction, Save button, editor message region, the D38 edit counter). Put the edit counter in
+NoteEditor's title onChange and useEditor's onUpdate.

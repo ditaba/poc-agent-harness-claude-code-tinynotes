@@ -24,3 +24,39 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Rich text, shared by the editor and the shared page (D34). Tailwind's preflight resets heading sizes,
+   list markers and margins, so they are restored here for the D4 formats only. */
+@layer components {
+  .note-content > * + * {
+    @apply mt-3;
+  }
+  .note-content h2 {
+    @apply mt-6 text-xl font-semibold;
+  }
+  .note-content h3 {
+    @apply mt-5 text-lg font-semibold;
+  }
+  .note-content > :first-child {
+    @apply mt-0;
+  }
+  .note-content ul {
+    @apply list-disc pl-6;
+  }
+  .note-content ol {
+    @apply list-decimal pl-6;
+  }
+  .note-content li > * + *,
+  .note-content li + li {
+    @apply mt-1;
+  }
+  .note-content blockquote {
+    @apply border-l-4 border-zinc-300 pl-4 text-zinc-700;
+  }
+  .note-content :not(pre) > code {
+    @apply rounded bg-zinc-100 px-1 py-0.5 font-mono text-[0.9em];
+  }
+  .note-content pre {
+    @apply overflow-x-auto rounded-md bg-zinc-100 p-3 font-mono text-sm;
+  }
+}
