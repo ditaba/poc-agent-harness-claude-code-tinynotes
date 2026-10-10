@@ -733,3 +733,54 @@ Test data removed afterwards: data/app.db has no users, sessions, accounts or no
 Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
 Next: M4-save (saveNoteAction, Save button, editor message region, the D38 edit counter). Put the edit counter in
 NoteEditor's title onChange and useEditor's onUpdate.
+
+## 2026-10-11 – M4-save (passes)
+
+Picked because its only dep, M4-editor-page, passes, and M4-save-errors, M4-delete and everything after depend on it.
+
+What changed:
+- lib/notes/actions.ts: saveNoteAction(id, input) per §9: validateNoteInput → its TITLE_TOO_LONG / CONTENT_TOO_LARGE /
+  INVALID_CONTENT passed through as is; updateNote(db, user.id, id, value, now) → false = NOT_FOUND; then
+  revalidatePath("/notes") + revalidatePath(`/notes/${id}`) and { ok: true, data: { updatedAt } }. The shared shape of
+  the client-called actions is a private helper runNoteAction(run): getCurrentUser() → UNAUTHENTICATED, and any throw
+  (session lookup included) → console.error + INTERNAL. M4-delete and M5 should reuse it. createNoteAction is unchanged.
+- components/note-editor.tsx: Save button + the editor's MessageRegion in a row under the editor. Save reads the title
+  and JSON.stringify(editor.getJSON()) at the click, clears the region (MSG-2), and runs
+  callAction(() => saveNoteAction(...)) in a useTransition (the AuthForm pattern, with a nested startTransition after the
+  await). While pending, "Saving…" + disabled; the title and editor stay editable (D38). Edit counter: a useRef bumped by
+  handleEdit, which runs from the title's onChange and useEditor's onUpdate (fires only on doc changes, not selection
+  moves). handleEdit also clears a "Saved" status but keeps an error (NOTE-8, MSG-2). On ok, "Saved" only if the counter
+  equals its value at the click; on error, ERROR_MESSAGES[code] in role="alert".
+- Not done here (M4-save-errors): the client-side 100 KB check (no request above it), the UNAUTHENTICATED "Sign in" link
+  (new tab). For now those codes show their plain §7 copy, and a body over 1 MB → INTERNAL via callAction.
+
+Verified with Playwright MCP (`bun run dev`, fresh DB):
+- Step 10 (slow): title "Groceries" + content with Ctrl+B/Ctrl+I → Save → "Saving…" disabled, region empty, title and
+  editor editable → "Saved"; the tab title becomes "Groceries – TinyNotes" through the revalidated metadata. Typing in
+  the editor, or in the title, clears "Saved". Save + an editor edit during "Saving…" → no "Saved"; same for a title edit;
+  Save again → "Saved" (NOTE-7, NOTE-8, D38).
+- Click-time snapshot: Save, then typing "LATE" while pending → the DB row has the content without "LATE", and the editor
+  still shows "LATE" after the revalidation (no reset). updated_at moved to the save time.
+- Step 11: h2, bullet list, blockquote and code block typed via input rules, saved, reloaded → identical editor HTML and
+  title (NOTE-9). "← All notes" (client nav) lists "Groceries" first with "Updated …" (NOTE-1).
+- Step 12: second note saved with title "   " → stored as "", listed as "Untitled" above "Groceries"; after re-saving
+  Groceries it moves back to the top (revalidatePath("/notes") refreshes the client-nav list).
+- Step 13: maxlength removed, 201 chars → "Title must be 200 characters or fewer." in role="alert"; it stays while typing in
+  the title and editor; the next (slow) save empties the region while "Saving…", then "Saved" replaces it (NOTE-11, MSG-2).
+- NOTE-13: Save requests rewritten with page.route + route.fetch (args body is text/plain JSON `[id, {title, content}]`)
+  to "not json", a root paragraph, an image node and a link mark → each response is {"ok":false,"error":"INVALID_CONTENT"}
+  and the editor shows "This note contains unsupported content and couldn't be saved." TITLE_TOO_LONG the same way.
+  updated_at was unchanged after all of them (nothing saved).
+- MSG-1: on load the editor region has exactly one empty role="status" and one empty role="alert".
+- Console: no errors or warnings, no hydration warnings.
+
+Playwright gotchas: the action response streams, so response.text() from waitForResponse fails ("No data found for
+resource"); capture it with route.fetch() + route.fulfill({ response }) instead. The ``` input rule takes the next typed
+word as the code-block language.
+
+Checks: bun test (118 pass), lint, typecheck (before and after the build), `bunx prettier --check .` and `bun run build`
+exit 0. Test data removed afterwards: data/app.db has no users, sessions, accounts or notes.
+
+Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
+Next: M4-save-errors (client size check before callAction, the UNAUTHENTICATED "Sign in" link with target="_blank",
+then steps 14, 23, 24 and the SQL-deleted NOT_FOUND check).

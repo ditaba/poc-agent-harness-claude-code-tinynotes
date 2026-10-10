@@ -3,8 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "../db";
-import { getCurrentUser } from "../session";
-import { createNote } from "./repo";
+import type { ActionResult } from "../errors";
+import { getCurrentUser, type CurrentUser } from "../session";
+import { createNote, updateNote } from "./repo";
+import { validateNoteInput, type NoteInput } from "./validation";
 
 // Server Actions are public endpoints, so each one checks the session itself (D25, §10).
 
@@ -19,4 +21,42 @@ export async function createNoteAction(): Promise<void> {
   // Purges the client router cache, so a cached /notes without the new note is never shown (NOTE-4).
   revalidatePath("/notes");
   redirect(`/notes/${note.id}`);
+}
+
+export async function saveNoteAction(
+  id: string,
+  input: NoteInput,
+): Promise<ActionResult<{ updatedAt: number }>> {
+  return runNoteAction((user) => {
+    const validated = validateNoteInput(input);
+    if (!validated.ok) {
+      return { ok: false, error: validated.error };
+    }
+    const updatedAt = Date.now();
+    if (!updateNote(db, user.id, id, validated.value, updatedAt)) {
+      return { ok: false, error: "NOT_FOUND" }; // missing or not owned (NOTE-15)
+    }
+    // The list order and the editor page's title change. The editor ignores its new props, so the
+    // revalidated page never resets what the user is typing.
+    revalidatePath("/notes");
+    revalidatePath(`/notes/${id}`);
+    return { ok: true, data: { updatedAt } };
+  });
+}
+
+// The shape every action called from client code shares (§9): no session → UNAUTHENTICATED, and an unexpected
+// error is logged and becomes INTERNAL, so the client only ever sees an ErrorCode. They never redirect (D41).
+async function runNoteAction<T>(
+  run: (user: CurrentUser) => ActionResult<T>,
+): Promise<ActionResult<T>> {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return { ok: false, error: "UNAUTHENTICATED" };
+    }
+    return run(user);
+  } catch (error) {
+    console.error("Note action failed:", error);
+    return { ok: false, error: "INTERNAL" };
+  }
 }
