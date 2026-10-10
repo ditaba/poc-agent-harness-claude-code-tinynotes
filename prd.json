@@ -310,7 +310,7 @@
       "bun run typecheck",
       "bun run build"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "M3-auth-errors",

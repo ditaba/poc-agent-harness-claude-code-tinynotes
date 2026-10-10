@@ -356,3 +356,42 @@ Verified: `bun test lib/share-token lib/notes` 85 pass (M2 Done when); `bun test
 
 Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
 Next: M3-auth-server and M3-auth-errors (both depend only on M2-repo), then M3-sign-up.
+
+## 2026-10-10 – M3-auth-server (passes)
+
+Picked before M3-auth-errors because it is the auth foundation (and the riskier integration); every other M3 task
+needs it. Its only dep, M2-repo, passes.
+
+What changed:
+- lib/auth.ts: betterAuth({ database: db (lib/db.ts, D29), emailAndPassword { enabled, autoSignIn } (8–128 default,
+  D10), rateLimit.customRules for /sign-in/email and /sign-up/email at 5 per 60 s (D44) }), exactly §9. No
+  trusted-origins option (§10) and no advanced.ipAddress (§12 R10 says none is needed). Secret and base URL come
+  from BETTER_AUTH_SECRET / BETTER_AUTH_URL in the env. The comment avoids the literal word "trustedOrigins", so the
+  verify grep and M7-acceptance's audit grep stay empty.
+- app/api/auth/[...all]/route.ts: `export const { GET, POST } = toNextJsHandler(auth)` (better-auth/next-js), the only
+  route handler (D13).
+- lib/session.ts: CurrentUser = { id, email }; getCurrentUser = React cache() around
+  auth.api.getSession({ headers: await headers() }), mapped to { id, email } or null; requireUser() →
+  redirect("/sign-in") when null. No nextCookies plugin (not in §9; the auth forms use authClient, not server-side
+  auth.api sign-in).
+
+Verified (`bun run dev`, curl):
+- POST /api/auth/sign-up/email with a new email → 200 + `Set-Cookie: better-auth.session_token=…; Max-Age=604800;
+  Path=/; HttpOnly; SameSite=Lax`; the user and its session are in data/app.db (the shared DB, D29).
+- GET /api/auth/get-session with that cookie → { session, user } with the email; without the cookie → null (D11).
+- A foreign Origin on sign-in → 403 ("Invalid origin" in the server log).
+- getCurrentUser/requireUser, through throwaway pages (app/session-check/, deleted before the commit): signed in →
+  { id, email }, and two calls in one render return the same object (cache() works); signed out → null; requireUser
+  signed in → the user, signed out → 307 to /sign-in. The AUTH-11/AUTH-12 page checks stay in M3-sign-up and
+  M3-notes-shell as planned.
+- The test user was deleted afterwards (session and account cascade), so data/app.db has no users.
+- lint, typecheck, `bun test` (95 pass), `bunx prettier --check .` and `bun run build` exit 0 (the build lists
+  ƒ /api/auth/[...all]). `grep -n trustedOrigins lib/auth.ts` and `grep -rnE 'trustedOrigins|allowedOrigins' lib app
+  next.config.ts` print nothing.
+
+Gotcha: after a dev run, deleting a page leaves .next/dev/types/validator.ts pointing at it, which fails tsc and the
+build's type check ("Cannot find module '../../../app/<page>/page.js'"). Delete .next/ (ignored cache) after
+removing throwaway pages.
+
+Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
+Next: M3-auth-errors (depends only on M2-repo), then M3-sign-up (needs both).
