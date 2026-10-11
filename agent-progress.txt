@@ -883,3 +883,26 @@ Checks: bun run format, `bunx prettier --check .`, bun test (118 pass), bun test
 Test data removed: data/app.db has no users, sessions, accounts, verifications or notes (orphans removed explicitly
 because the ad-hoc cleanup connection had foreign_keys off).
 Next: M5-share-panel or M6-toolbar (both depend only on M4-delete).
+
+## 2026-10-11 – M5-share-panel (BLOCKED)
+
+Selected one eligible task: M4-delete passes and M5-share-panel has no blocked field.
+Preferred sharing integration before routine toolbar work. Initial git status was clean.
+
+Required-tool preflight failed: the complete enabled tool inventory contains no Playwright
+MCP browser tools or run-code tool. Searched names and descriptions for playwright and
+browser; no callable Playwright MCP was found. Computer-use is available but is not the
+required Playwright MCP and was not substituted. AGENTS.md explicitly requires recording
+and blocking when required UI acceptance tools cannot be used.
+
+No feature code was changed. prd.json keeps passes=false and records the blocker.
+SPEC §11 steps 8 (Sharing), 15, 18 (two tabs), 19 (new URL), clipboard success/failure,
+and other M5-share-panel acceptance remain unverified. Enable Playwright MCP and remove
+the blocked field before retrying. No loop/configuration changes, push or deployment.
+
+Checks after recording the blocker: bun run format exits 0 (only prd.json formatted),
+bun test exits 0 (118 pass / 0 fail), bun run typecheck exits 0.
+bun run build compiled successfully but exits 1 during Running TypeScript:
+EPERM: operation not permitted, uv_spawn 'C:\Users\tbd\.bun\bin\bun.exe'.
+This is a sandbox permission failure, not verified build success. No bypass attempted.
+bun run lint exits 0. git diff --check passes. Initial git add failed with index.lock Permission denied; approved require_escalated staging succeeded. Only prd.json and agent-progress.txt are task-owned.
