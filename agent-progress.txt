@@ -1180,3 +1180,63 @@ by staging only the M7-visual passes hunk.
 Approved staging succeeds. Inspected cached diff: sixteen task-owned paths,
 prd.json only M7-visual passes false -> true. The initial human blocked-field
 removal remains exactly unstaged; no unrelated file changes are staged.
+
+## 2026-10-11 – M7-checklist-1-14 (passes)
+
+Only eligible task selected; dependencies pass. Initial human change removes
+M5-share-panel historical blocked field from prd.json; preserved and excluded
+from commit. No initial staged files. No product changes were needed.
+Read project rules, AGENTS, PRD/progress, SPEC manual checklist and relevant
+requirements, plus bun-first, clean-typescript and web-security skills.
+
+Fresh DB: verified absolute data/ path within workspace, backed up existing data
+to C:\Users\tbd\AppData\Local\Temp\tinynotes-m7-before-9f9bc855-b1e7-46db-a15f-24a6b670dc79,
+then removed workspace data/ per task. Build applied both migrations. Production
+bun run start served localhost:3000. No process/environment/config overrides.
+
+Playwright MCP steps 1–14:
+1–3: signed-out / redirects to /sign-in. Sign-up copy matches AUTH-1; password
+required/type/min 8/max 128 checked. Ada registration reaches empty notes list;
+1.5 s POST delay confirms disabled Creating account… button.
+4–5: Sign out redirects, /notes redirects signed-out, duplicate email displays
+exact error. Password clears and email stays.
+6–7: wrong password and unknown email both display Invalid email or password.
+Password clears. ADA@example.com signs in, disabled Signing in… observed under
+POST delay; signed-in /sign-in and / both redirect to /notes.
+8: New note creates 69bbad13-da5d-4c9e-bdc7-455b3686377d, empty title, editor,
+Sharing heading, This note is private. and Untitled page title.
+9: all ten format buttons toggle aria-pressed true/false on selected text;
+Undo removes Bold, Redo restores it. Half-bold range has aria-pressed=false.
+Bold within code block has aria-disabled=true; forced physical click (Playwright
+otherwise respects aria-disabled) leaves HTML unchanged. Tab is one stop and
+returns to last focused button; Home Bold, left wrap Redo, right wrap Bold,
+End Redo, left Undo, Tab Note content, Shift+Tab Undo. Ctrl+B key event was
+prevented and produced <strong>Bold groceries</strong>.
+10–11: delayed Save shows Saving… and both Save/Delete disabled. Saved clears
+on edit; editing during pending save yields empty status after completion.
+Final Groceries save shows Saved. Reload preserves exact title and bold HTML;
+list shows Groceries with Updated date.
+12–13: second note ac843073-d070-4887-a3a2-22537671702c whitespace title saves
+as Untitled, above Groceries. Removed maxlength and saved 201 chars -> exact
+title error. Further edit preserves error; shortened title save replaces it
+with Saved. Second note now saved as Limit test.
+14: dispatched clipboard paste of 153600 chars, then 2097152 additional chars
+(total 2250752). Both Save clicks display exact 100 KB error; request listener
+records zero POSTs for each. Reload shows saved empty content, not oversized text.
+
+Automation retries: first sign-in fill raced link navigation (email reset, no
+POST); retried settled form. Initial selection assertions read before transaction
+updates or included trailing empty paragraphs; polling/explicit text ranges pass.
+Disabled-button default click timed out because Playwright honors aria-disabled;
+force:true verifies no effect. Large single-line paste took several minutes but
+completed successfully. No application bug or unverified acceptance remains.
+
+Verification: bun run format unchanged; bun test 118 pass/0 fail; lint exit 0.
+Initial concurrent typecheck/build raced generated .next/types/routes.js and
+reported TS2307; post-build typecheck exits 0. Default build compiled then failed
+EPERM uv_spawn C:\Users\tbd\.bun\bin\bun.exe. Reviewed require_escalated retry
+approved and build exits 0, listing all routes. No bypass. Prettier check and
+git diff --check pass. Production server stopped with Ctrl+C after verification.
+Fresh data/app.db kept for M7-checklist-15-24, with Ada, Groceries (bold content),
+and Limit test. No push, deployment, loop/configuration or dependency changes.
+Initial task-only staging failed: fatal Unable to create .git/index.lock: Permission denied. Requesting reviewed escalation; patch includes only this task passes hunk.
