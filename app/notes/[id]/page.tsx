@@ -4,9 +4,11 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { AppHeader } from "@/components/app-header";
 import { NoteEditor } from "@/components/note-editor";
+import { SharePanel } from "@/components/share-panel";
 import { db } from "@/lib/db";
 import { getNote } from "@/lib/notes/repo";
 import { requireUser } from "@/lib/session";
+import { buildShareUrl } from "@/lib/share-token";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -40,11 +42,18 @@ export default async function NotePage({ params }: Props) {
           ← All notes
         </Link>
         <div className="mt-6">
-          {/* Only what the editor needs; the share token stays on the server. */}
+          {/* The editor gets its content; sharing gets only its URL. */}
           <NoteEditor
             note={{ id: note.id, title: note.title, content: note.content }}
           />
         </div>
+        <SharePanel
+          key={note.id}
+          noteId={note.id}
+          initialShareUrl={
+            note.shareToken ? buildShareUrl(note.shareToken) : null
+          }
+        />
       </main>
     </>
   );

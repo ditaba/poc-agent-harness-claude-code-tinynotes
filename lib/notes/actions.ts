@@ -5,7 +5,14 @@ import { redirect } from "next/navigation";
 import { db } from "../db";
 import type { ActionResult } from "../errors";
 import { getCurrentUser, type CurrentUser } from "../session";
-import { createNote, deleteNote, updateNote } from "./repo";
+import { buildShareUrl, generateShareToken } from "../share-token";
+import {
+  createNote,
+  deleteNote,
+  disableShare,
+  enableShare,
+  updateNote,
+} from "./repo";
 import { validateNoteInput, type NoteInput } from "./validation";
 
 // Server Actions are public endpoints, so each one checks the session itself (D25, §10).
@@ -51,6 +58,32 @@ export async function deleteNoteAction(id: string): Promise<ActionResult> {
     }
     // No revalidatePath: it would re-render the current page, which is now a 404. The client then calls
     // router.replace("/notes"), and /notes is dynamic, so it is fetched fresh (D41).
+    return { ok: true, data: undefined };
+  });
+}
+
+export async function enableShareAction(
+  id: string,
+): Promise<ActionResult<{ shareUrl: string }>> {
+  return runNoteAction((user) => {
+    const token = enableShare(db, user.id, id, generateShareToken());
+    if (!token) {
+      return { ok: false, error: "NOT_FOUND" };
+    }
+    const shareUrl = buildShareUrl(token);
+    revalidatePath("/notes");
+    revalidatePath(`/notes/${id}`);
+    return { ok: true, data: { shareUrl } };
+  });
+}
+
+export async function disableShareAction(id: string): Promise<ActionResult> {
+  return runNoteAction((user) => {
+    if (!disableShare(db, user.id, id)) {
+      return { ok: false, error: "NOT_FOUND" };
+    }
+    revalidatePath("/notes");
+    revalidatePath(`/notes/${id}`);
     return { ok: true, data: undefined };
   });
 }

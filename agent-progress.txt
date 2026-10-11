@@ -906,3 +906,60 @@ bun run build compiled successfully but exits 1 during Running TypeScript:
 EPERM: operation not permitted, uv_spawn 'C:\Users\tbd\.bun\bin\bun.exe'.
 This is a sandbox permission failure, not verified build success. No bypass attempted.
 bun run lint exits 0. git diff --check passes. Initial git add failed with index.lock Permission denied; approved require_escalated staging succeeded. Only prd.json and agent-progress.txt are task-owned.
+
+## 2026-10-11 – M5-share-panel (passes, rerun after human unblock)
+
+Selected the eligible sharing integration before M6-toolbar. Playwright MCP is available again.
+Initial human change: prd.json removes M5-share-panel's blocked field (unstaged); no other changes.
+That removal is preserved unstaged and excluded from this commit. Only the task's passes change is
+staged in prd.json, so the historical blocked field remains in HEAD until the human commits their edit.
+
+Changes:
+- lib/notes/actions.ts adds enableShareAction and disableShareAction via runNoteAction: each checks
+  getCurrentUser, uses the owner-scoped repo functions, returns NOT_FOUND for missing/unowned notes,
+  and revalidates /notes and the note path. Enable returns buildShareUrl of the existing/new token.
+- components/share-panel.tsx renders the exact private/shared copy, read-only URL, pending labels,
+  clipboard feedback and its own MessageRegion. Both actions use callAction; session-expiry errors
+  include the new-tab Sign in link. State starts from initialShareUrl, then changes only from its
+  own results; the copied-feedback timer is cleaned up on reset/unmount.
+- app/notes/[id]/page.tsx mounts SharePanel keyed by note.id with the server-built initial URL.
+
+Playwright MCP acceptance against bun run dev --port 3001 (process-only BETTER_AUTH_URL override):
+- SPEC step 8 Sharing: new note shows Sharing / This note is private. / Create share link, with
+  one empty status and alert in the section. Step 15 with POSTs delayed 1500 ms: Creating link…
+  disabled, then exact shared copy and read-only Share link input containing localhost:3001/s/{token}.
+- Clipboard permissions granted: clipboard readback exactly equals the URL. MutationObserver measured
+  Copied! lasting 2005 ms. Forced writeText rejection shows the exact manual-copy error. It persists
+  through title edits and clears on the next copy/action; editor messages are independent.
+- Step 18 two-tab portion: second tab disables; original keeps the URL, even after Save revalidates
+  fresh private props. Original Disable -> Disabling… disabled -> private state, no error. Its editor
+  Saved status stays. Second tab stays private when original enables, until reload.
+- Step 19 new-URL portion: enable/disable/enable yields different tokens. Double-click Create yields
+  one stable token on reload; a second stale-private tab's enable returns exactly that existing URL.
+- NOTE-1/D32: Newer note stays above Groceries across share toggles. Shared badge appears/disappears
+  on client navigation. DB updated_at remains 1791724856745 for Groceries throughout those toggles.
+- Unsaved title and content survive both sharing actions and their revalidation.
+- Both actions: request args rewritten to a missing id -> exact NOT_FOUND in Sharing; Bob's actions
+  rewritten to the owner's id -> same error, leaving both notes' tokens unchanged. Aborted POSTs ->
+  INTERNAL copy, button enabled again and local share state kept. Real sign-out in another tab ->
+  UNAUTHENTICATED copy plus /sign-in link with target=_blank and rel=noopener noreferrer. Signing in
+  lets the original tab retry. All regions retain one status/alert pair.
+- Initial list captures raced soft navigation and returned empty arrays; repeated after waiting for
+  Your notes heading, capturing correct ordered rows and badges. Console has no warnings/hydration
+  warnings; errors only from the two deliberately aborted requests and callAction logging.
+- Removed only the two test users using openDatabase with foreign_keys enabled (auth/note cascades),
+  deleted the ignored temporary DB-check script, and stopped the task's dev server.
+
+Docs: installed Next 16.4 forms and revalidatePath guides; Context7 official React useTransition docs
+confirm nested transitions for post-await state updates. SPEC takes precedence over generic skills.
+Checks after final code: bun run format, bun test (118 pass / 0 fail), bun run lint, bun run typecheck
+(also after build), bun test lib/share-token lib/notes/repo (48 pass), bunx prettier --check .,
+git diff --check, and bun run build exit 0. Default-sandbox dev and build failed with
+EPERM uv_spawn C:\Users\tbd\.bun\bin\bun.exe; approved require_escalated retries succeeded.
+No bypass, dependency/loop/configuration changes, push or deployment. Public-page acceptance remains
+for M5-public-page; this task verifies the panel portions specified in its acceptance/verify lists.
+Next: M5-public-page or M6-toolbar.
+Git staging initially failed: Unable to create .git/index.lock: Permission denied. Approved
+require_escalated staging succeeded. Inspected cached prd.json diff: only passes false -> true;
+the unstaged diff is exactly the human's original blocked-field removal. Cached files are only
+the five task-owned paths listed above. No other human changes were staged.
