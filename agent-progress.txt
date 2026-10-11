@@ -1038,3 +1038,55 @@ Git staging initially failed: Unable to create .git/index.lock: Permission denie
 require_escalated staging succeeded. Cached prd.json diff contains only M5-public-page's
 passes false -> true; unstaged diff is exactly the pre-existing human blocker removal.
 Only the seven task-owned paths are staged. No pre-existing human edit is included.
+
+## 2026-10-11 – M6-toolbar (passes)
+
+Selected the only eligible task; M4-delete passes. Initial unstaged human change:
+prd.json removes M5-share-panel's historical blocked field. Preserved it unstaged;
+only M6-toolbar's passes change belongs in this commit.
+
+Changes: components/editor-toolbar.tsx implements the twelve exact NOTE-6 labels,
+role=toolbar / Formatting, useEditorState subscriptions to isActive and can,
+aria-pressed on formats only, and aria-disabled without native disabled. Clicks
+re-check can before running the focused command. Roving tabindex remembers the
+last focused button; Left/Right wrap, Home/End jump, unavailable buttons remain
+focusable. NoteEditor mounts the toolbar once its existing editor is available.
+No dependencies, loop/configuration changes, push or deployment.
+
+Read repository Bun, TypeScript, security and all UI skills; installed Next 16.4
+use-client guide; Context7 /ueberdosis/tiptap-docs useEditorState documentation.
+Verified pinned TipTap source for useEditorState and range isActive semantics.
+
+Playwright MCP, bun run dev --port 3001 (process-only BETTER_AUTH_URL override):
+- Exact twelve visible labels and accessible names; ten formats initially pressed
+  false; Undo/Redo have no aria-pressed and both initially aria-disabled true.
+- Step 9: clicked every format twice on a selected text fixture; each toggled its
+  pressed state and expected strong/em/s/code/h2/h3/ul/ol/blockquote/pre tag, then
+  removed it. Set selection with editor commands to avoid DOM selection races.
+- Half-bold range (<strong>Half</strong> plain) gives Bold aria-pressed false.
+- Code-block selection gives Bold aria-disabled true; forced click leaves HTML
+  unchanged. First ordinary Playwright click timed out because Playwright treats
+  aria-disabled as disabled; repeated with force to exercise the app's guard.
+- One tabindex=0 throughout; Tab from Title enters toolbar, Left wraps Bold to
+  Redo, Right wraps back, arrows reach adjacent buttons, End/Home reach last/first.
+  Disabled format buttons remain focusable; Enter on disabled Strikethrough in a
+  code block does nothing. Tab leaves for Note content; Shift+Tab returns to the
+  last focused Strikethrough button.
+- Reload resets history: forced Undo/Redo clicks do nothing. Typed History text,
+  Undo removes it, Redo restores it. Ctrl+B on the selection applies strong and
+  immediately updates Bold pressed state. Save/reload retains the formatting.
+- Browser console: zero errors/warnings. Screenshot visually inspected:
+  .playwright-mcp/m6-toolbar.png (ignored). Task dev server stopped; only the task's
+  test user is removed with foreign-key cascades, preserving existing data.
+
+Checks: bun run format; bun test (118 pass / 0 fail); bun run lint; bun run
+typecheck; bun run build all exit 0. Default-sandbox dev and build initially fail
+with EPERM uv_spawn C:\Users\tbd\.bun\bin\bun.exe; approved require_escalated
+retries succeed. No permission bypass or unverified build claim. Final formatter,
+Prettier check, diff check and post-build typecheck recorded before commit.
+Next: M7-visual or M7-readme-cleanup; no other task implemented this session.
+Final checks: bun run format, bunx prettier --check ., git diff --check and
+post-build bun run typecheck exit 0. Initial Git staging fails with Unable to
+create .git/index.lock: Permission denied; approved require_escalated staging
+succeeds. Cached diff includes only four task-owned paths and only M6-toolbar's
+passes change in prd.json; the initial human blocked-field removal stays unstaged.

@@ -722,7 +722,7 @@
       "bun run build",
       "Playwright MCP (bun run dev): §11 step 9 in full"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "M7-visual",

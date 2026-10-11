@@ -14,6 +14,7 @@ import {
   utf8ByteLength,
 } from "@/lib/notes/limits";
 import { MessageRegion, type Message } from "./message-region";
+import { EditorToolbar } from "./editor-toolbar";
 
 // UNAUTHENTICATED adds a "Sign in" link that opens in a new tab, so unsaved edits stay in this one (§7, R5).
 function errorMessage(code: ErrorCode): Message {
@@ -139,6 +140,7 @@ export function NoteEditor({
         }}
         className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-2xl font-semibold"
       />
+      {editor && <EditorToolbar editor={editor} />}
       {/* The box is server-rendered, so the page doesn't shift when the editor mounts. As a grid, it
           stretches the editor to its full height, so a click anywhere in it focuses the editor. */}
       <EditorContent
