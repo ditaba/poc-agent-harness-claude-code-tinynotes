@@ -1295,3 +1295,55 @@ bun run typecheck exit 0. No sandbox bypass. Database retained for final task:
 Ada's remaining note title Limit test network recovery, Bob has no notes.
 Next: M7-acceptance. No push or deployment.
 Task-only staging initially failed: fatal Unable to create .git/index.lock: Permission denied. Requesting reviewed escalation; cached patch excludes initial human PRD hunk.
+
+## 2026-10-11 – M7-acceptance (passes)
+
+Selected the only eligible task; M7-checklist-15-24 passes. No product changes
+needed. Read AGENTS/project rules, PRD/progress, SPEC security/manual checklist
+and required Bun, TypeScript and security skills. Preserved initial unstaged
+human deletion of M5-share-panel's historical blocked field; no staged changes.
+
+SPEC step 25: moved .env to a unique temporary path, ran bun run build, observed
+exit 1 naming BETTER_AUTH_SECRET and BETTER_AUTH_URL, then restored .env in
+finally. No secret printed. Step 26: verified resolved absolute data/ target is
+inside workspace, backed up existing database to
+C:\Users\tbd\AppData\Local\Temp\tinynotes-m7-final-9d36b1ee-b7b7-4c4f-ae5c-59da4ff4f8c5,
+deleted workspace data/, and built. Both migrations applied to the fresh DB.
+Default build compiled but failed EPERM uv_spawn
+C:\Users\tbd\.bun\bin\bun.exe. Approved require_escalated retry exits 0 and
+lists all app routes. Production bun run start ready on localhost:3000.
+
+Playwright MCP production step 26, rechecking steps 2, 8, 10 and 16:
+- Ada sign-up with password123 reaches exact empty-state copy. Delayed POST
+  shows disabled Creating account… . Session cookie HttpOnly=true, SameSite=Lax.
+- New note 2031a3ca-f460-4d06-a456-15c21e12195c has empty title, content editor,
+  Sharing heading and This note is private. Saved Production groceries content.
+- Delayed Save shows Saving… with Save/Delete disabled; success shows Saved;
+  title edit clears it. Edit during pending Save yields no stale Saved status;
+  subsequent Save succeeds. Reload preserves title/content.
+- Enabled sharing; separate browser context with zero cookies opens
+  /s/0IWGiKB_dTHzwr6T6wEDTSrjgQUg8xLI with HTTP 200, Groceries title,
+  Last updated, saved content and Shared with TinyNotes. No textbox/toolbar,
+  response source excludes ada@example.com. Headers no-referrer/nosniff/DENY.
+Step 27: sign out, submit six wrong passwords through UI within 1056 ms:
+401 x5 with Invalid email or password., then 429 with exact Too many attempts.
+Please wait a minute and try again. Password clears each time. Expected six
+failed-resource console entries, zero warnings. Production server stopped.
+
+Security audit: inspected repo SQL, migrations/runner, database PRAGMAs and test
+helpers: input values use positional parameters; DDL/PRAGMAs and checked-in
+migration SQL are static. Owner queries scoped by user_id; public lookup returns
+only title/content/updated_at and validates token format before query, no session
+lookup. Actions recheck session through runNoteAction (create checks directly).
+Only components/note-content.tsx has dangerouslySetInnerHTML; title React text,
+schema normalization/static escaping tests pass, public metadata noindex/nofollow.
+No trustedOrigins or allowedOrigins. package.json dependencies/versions match
+SPEC §4 exactly with no ^/~. No dependency/configuration/loop changes.
+
+Checks: bun run format unchanged before validation; bun test 118 pass/0 fail;
+bun run lint, post-build bun run typecheck and reviewed bun run build exit 0.
+One audit read used conflicting Get-Content parameters and failed; corrected
+LiteralPath read succeeded. No failed application acceptance check remains.
+Prior two checklist tasks plus this task cover all SPEC steps 1–27. Fresh DB
+retained; earlier database preserved in temporary backup. No push or deployment.
+Final format, Prettier check and diff check pass. Initial Git staging failed: fatal Unable to create 'D:/Projects/poc-agent-harness-claude-code-tinynotes/.git/index.lock': Permission denied. Requesting reviewed escalation for task-only staging and commit; initial human PRD hunk excluded.
