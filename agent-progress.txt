@@ -963,3 +963,78 @@ Git staging initially failed: Unable to create .git/index.lock: Permission denie
 require_escalated staging succeeded. Inspected cached prd.json diff: only passes false -> true;
 the unstaged diff is exactly the human's original blocked-field removal. Cached files are only
 the five task-owned paths listed above. No other human changes were staged.
+
+## 2026-10-11 – M5-public-page (passes)
+
+Selected the eligible public-sharing integration before M6-toolbar. M5-share-panel passes.
+Initial human change: prd.json removes the historical M5-share-panel blocked field (unstaged).
+Preserved that removal unstaged; only this task's passes change is staged in prd.json.
+
+Changes:
+- components/note-content.tsx renders the server-side renderNoteHtml result in .note-content,
+  with the only dangerouslySetInnerHTML occurrence in app/components/lib. Updated the old
+  render.ts comment so the task's literal grep audit also finds exactly one file.
+- app/s/[token]/page.tsx validates token format before any query, then calls getSharedNote
+  directly with db. React cache deduplicates the page/metadata lookup within a request;
+  connection() defers synchronous SQLite reads to request time. No persistent note cache,
+  session lookup, auth header, owner fields, or note/user ids are passed to the rendered page.
+  Exact title/Untitled, Last updated date, NoteContent, footer and noindex/nofollow metadata.
+- app/s/[token]/not-found.tsx gives the exact PUB-2 heading and explanation.
+- next.config.ts headers() adds nosniff and DENY on all routes and no-referrer on /s/:path*.
+  No origin override, dependency, loop/configuration change, push or deployment.
+
+Docs: read installed Next 16.4 not-found, connection, generateMetadata and headers guides.
+Context7 /vercel/next.js confirms connection before synchronous DB reads and React cache
+for a shared page/metadata lookup. SPEC takes precedence over generic UI/security skills.
+
+Playwright MCP acceptance with bun run dev --port 3001, using two task-specific accounts:
+- Step 8: newly created note has Sharing / This note is private. / Create share link.
+- Step 15 (POST delay 1500 ms): Creating link… is disabled, then the read-only URL appears.
+  Notes list shows Groceries with Shared badge. Copy link clipboard readback matches the URL;
+  after awaiting its state update, Copied! is visible. Initial immediate count was 0 because
+  the asynchronous clipboard update had not settled; repeated with waitFor and passed.
+- Step 16: separate cookie-free browser context returns 200; exact title, date, saved content
+  and footer. Raw response source contains neither owner email nor note id; public data shape
+  has no owner name or user id. Robots is noindex, nofollow. Main has zero edit controls.
+  Initial whole-document control count included Next's dev tool button; scoped main count is 0.
+- Step 17: owner saves Milk, eggs, and apples; reload shows it and retains the same share URL.
+- Step 18: second editor tab disables; original still shows its stale URL. Original's slow
+  Disable displays disabled Disabling… and succeeds without an error, then private state.
+  Public reload returns HTTP 404 and the exact unavailable copy.
+- Step 19: re-enable produces a different URL; old URL still 404, new URL 200.
+- Step 20: /s/short and a well-formed unknown 32-character token each return 404 with exact copy.
+  Source inspection confirms the malformed branch calls notFound before getSharedNote.
+- Step 21: Bob has an empty list, owner's editor URL returns generic 404, active share URL 200.
+
+Playwright MCP with bun run start --port 3002 (production build):
+- Saved a JSON fixture through the real editor and Save action using all allowed formats.
+  Public content tags are exactly h2, h3, p, strong, em, s, code, br, ul, li, ol, blockquote, pre.
+  Script text remains escaped; hostile code-block language cannot create an img or handler.
+  Hostile title renders as plain text, with zero img nodes and zero editing controls in main.
+  Saved empty title -> reload gives h1 Untitled and title Untitled – TinyNotes (200).
+  This verifies the static renderer inside the production Next server build, including R4.
+- Step 22: native Delete confirmation Cancel preserves note and share URL. OK with slow POST
+  records Save disabled + Deleting… disabled, then /notes without the note. Its public URL
+  returns HTTP 404 with exact PUB-2 copy.
+- curl HEAD on active link: 200 plus all three security headers. HEAD /s/short: 404 plus all
+  three headers. Non-share page and auth route responses include nosniff and DENY.
+- Screenshots visually inspected: .playwright-mcp/m5-public-signed-out.png and
+  .playwright-mcp/m5-public-production-rich-text.png (ignored verification artifacts).
+- Browser console reports zero errors/warnings; no hydration issues or server errors.
+- Stopped both task servers. Removed only the task's two users through openDatabase with
+  foreign keys enabled (cascades); remaining task users 0. Removed ignored cleanup script.
+  First cleanup script used response.status() instead of status and failed before deleting;
+  corrected cleanup succeeded. No product code was affected by that temporary script typo.
+
+Checks: bun run format; bun test (118 pass / 0 fail); bun test lib/notes/render (20 pass);
+bun run lint; bun run typecheck; bunx prettier --check .; git diff --check all exit 0.
+First typecheck raced Next route generation and reported stale AppRoutes/ParamMap entries;
+rerun after the successful build exits 0, as does the final post-dev typecheck.
+Default-sandbox build and dev returned EPERM uv_spawn C:\Users\tbd\.bun\bin\bun.exe.
+Approved require_escalated retries succeeded; bun run build exits 0 and lists /s/[token]
+as dynamic. No permission bypass or unverified build claim. M5 Done-when checks passed.
+Next: M6-toolbar, the remaining prerequisite for M7.
+Git staging initially failed: Unable to create .git/index.lock: Permission denied. Approved
+require_escalated staging succeeded. Cached prd.json diff contains only M5-public-page's
+passes false -> true; unstaged diff is exactly the pre-existing human blocker removal.
+Only the seven task-owned paths are staged. No pre-existing human edit is included.
