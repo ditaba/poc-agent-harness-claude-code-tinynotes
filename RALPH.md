@@ -47,8 +47,60 @@ MCPs and settings must be configured locally in this project:
 
 ## Usage
 
+### Codex
+
+Run from **Git Bash** on Windows (or Bash in WSL/Linux/macOS):
+
+```bash
+codex login                    # One-time CLI authentication
+./ralph.sh codex                # Default: at most 20 fresh sessions
+./ralph.sh codex 5              # Smaller first run
+CODEX_MODEL=your-model ./ralph.sh codex 5  # Optional; otherwise CLI default
+```
+
+Use a recent Codex CLI supporting `codex exec --approve-for-me` (validated
+against 0.162.1). In PowerShell, use `codex.cmd login` if execution policy blocks
+the npm `codex.ps1` shim, then run the loop from Git Bash.
+
+Codex uses `AGENTS.md` as its entry point and loads independent guidance from
+`.codex/rules/project.md`, `.codex/skills/` and `.codex/workflows/`. The eight
+implementation skill guides and supporting references were copied and adapted
+for Codex; future edits can be made independently of Claude configuration.
+Documentation lookup and code review have Codex-specific workflow files.
+Codex iterations do not require `CLAUDE.md` or `.claude/`. Claude iterations
+continue using their own guidance. `SPEC.md` is the shared source of truth.
+Formatting is an explicit Codex step before checks and commit.
+
+The script supplies Playwright (stdio via `npx -y @playwright/mcp@latest`) and
+Context7 (HTTP) settings through CLI `-c` overrides on every Codex iteration.
+Node/npm/npx must be on PATH; first startup can download the Playwright MCP.
+No API key is embedded. Your existing user-level model/auth configuration remains
+in use. MCP overrides apply to this loop without editing global settings.
+
+`--approve-for-me` keeps the workspace sandbox and sends permission requests to
+automatic review, allowing review of operations such as commits in protected
+`.git`. Outbound network access is enabled for dependency installation and docs.
+Rejected required operations must be logged as blocked; the loop does not disable
+sandboxing to retry. Organization policies can still restrict operations.
+
+Each iteration streams Codex execution to the terminal and reads stop markers
+only from `--output-last-message`, avoiding false stops from echoed prompts.
+Exit codes: `0` completion or iteration limit, `2` blocked, otherwise the CLI's
+failure code (or `1` for setup/argument errors). Resume using the same command:
+progress is read from disk, not a resumed chat session.
+
+Before starting, review any existing staged/unstaged changes. The agent is
+instructed to preserve them and commit only its own task paths.
+
+Official references: [non-interactive execution](https://developers.openai.com/codex/noninteractive),
+[configuration](https://developers.openai.com/codex/config-reference),
+[MCP](https://developers.openai.com/codex/mcp).
+
+### Claude (existing behavior)
+
 ```bash
 ./ralph.sh 20    # Run for up to 20 iterations
+./ralph.sh claude 20  # Explicit agent selection
 ```
 
 Ralph stops when:
@@ -94,6 +146,8 @@ This prevents "it compiles so it works" assumptions.
 - **`SPEC.md`** - Technical specification
 - **`.mcp.json`** - MCP configurations
 - **`.claude/settings.json`** - Sandbox and permissions
+- **`AGENTS.md`** - Codex entry point
+- **`.codex/`** - Independent Codex project rules, skills and workflows
 
 ## Monitoring Progress
 
