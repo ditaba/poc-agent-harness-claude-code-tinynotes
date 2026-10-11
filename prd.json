@@ -794,7 +794,7 @@
       "bun run build && bun run start",
       "Playwright MCP: §11 steps 15–24"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "M7-acceptance",

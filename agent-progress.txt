@@ -1240,3 +1240,58 @@ git diff --check pass. Production server stopped with Ctrl+C after verification.
 Fresh data/app.db kept for M7-checklist-15-24, with Ada, Groceries (bold content),
 and Limit test. No push, deployment, loop/configuration or dependency changes.
 Initial task-only staging failed: fatal Unable to create .git/index.lock: Permission denied. Requesting reviewed escalation; patch includes only this task passes hunk.
+
+## 2026-10-11 – M7-checklist-15-24 (passes)
+
+Selected the only eligible task; M7-checklist-1-14 passes. No product changes
+needed. Preserved initial unstaged human deletion of the historical M5-share-panel
+blocked field in prd.json; no initial staged changes. Kept existing data/app.db
+from part 1, including Ada, Groceries and Limit test. Read AGENTS/project rules,
+PRD/progress, SPEC requirements/manual checklist, and bun-first, clean-typescript,
+web-security skills. No dependency, loop or configuration changes.
+
+Production verification via Playwright MCP, SPEC steps 15–24 in order:
+15: Groceries 69bbad13-da5d-4c9e-bdc7-455b3686377d starts private. POST delay
+1.5 s exposes disabled Creating link…; share URL appears. Separate list tab shows
+Shared badge. Clipboard permissions granted; Copied! appears and clipboard equals
+URL http://localhost:3000/s/b2_dJ6tbJOWrEpZ42vl-IVYsbWElZ-rL.
+16: Separate browser context has no session. Public response 200, title Groceries,
+Last updated, bold saved content and Shared with TinyNotes. No textbox/toolbar;
+full response source excludes ada@example.com.
+17: Save Updated groceries production acceptance; public reload contains new
+content and editor retains the same share URL.
+18: Second editor tab disables sharing; first tab retains stale URL. Delayed
+Disable exposes disabled Disabling…; completes to private without Sharing error.
+Old URL response 404 with This note isn't available.
+19–20: Re-enable gives different token GwNDsdlE70VHrDqhOi0nwxnlQArQY4qD.
+Original link stays 404; /s/short returns 404 with exact public unavailable copy.
+21: Separate context signs up bob@example.com/password123. Bob's list is empty,
+excludes Ada's notes; Ada editor returns HTTP 404/Page not found. Active share
+link returns 200 and Groceries to Bob.
+22: Native confirmation exact copy checked. Dismiss preserves editor/title.
+Accept with delayed POST exposes Deleting… with Save/Delete disabled, navigates
+to /notes without Groceries; active public link then returns 404/unavailable.
+23: On retained Limit test ac843073-d070-4887-a3a2-22537671702c, type Session
+recovery production acceptance. Sign out in another tab. Save displays exact
+session-expired error; Sign in has target=_blank and opens popup. Ada signs in
+there; original tab saves retained content and displays Saved.
+24: Stop actual production server with Ctrl+C. Edit title and Save displays exact
+Something went wrong. Please try again.; Save/Delete re-enabled. Restart using
+bun run start, then original tab Save succeeds. Stop verification server.
+
+Automation notes: initial no-error assertion included Next route announcer's
+role=alert title; scoped to Sharing alert and confirmed empty. Native dialog
+caused MCP to yield modal output while run-code continued; a subsequent dialog
+handler found no modal because dismissal/acceptance already completed. All
+inline cancellation/pending assertions proceeded, list confirmed deletion and
+separate HTTP probe confirmed deleted link 404. Expected offline console errors
+only (failed request and callAction rejection), zero warnings.
+
+Checks: bun run format unchanged before validation. bun test 118 pass/0 fail;
+bun run lint exit 0. Default build compiled but failed EPERM uv_spawn
+C:\Users\tbd\.bun\bin\bun.exe during TypeScript worker spawn. Reviewed
+require_escalated build retry approved: exit 0 with all routes. Post-build
+bun run typecheck exit 0. No sandbox bypass. Database retained for final task:
+Ada's remaining note title Limit test network recovery, Bob has no notes.
+Next: M7-acceptance. No push or deployment.
+Task-only staging initially failed: fatal Unable to create .git/index.lock: Permission denied. Requesting reviewed escalation; cached patch excludes initial human PRD hunk.
