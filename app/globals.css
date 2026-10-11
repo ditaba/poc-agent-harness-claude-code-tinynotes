@@ -12,22 +12,31 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+@layer components {
+  .page-container {
+    @apply mx-auto w-full max-w-3xl px-4;
+    overflow-wrap: anywhere;
+  }
+
+  :is(a, button, input, [contenteditable="true"]):focus-visible {
+    outline: 2px solid var(--color-zinc-700);
+    outline-offset: 3px;
+  }
 }
 
 /* Rich text, shared by the editor and the shared page (D34). Tailwind's preflight resets heading sizes,
    list markers and margins, so they are restored here for the D4 formats only. */
 @layer components {
+  .note-content {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
   .note-content > * + * {
     @apply mt-3;
   }

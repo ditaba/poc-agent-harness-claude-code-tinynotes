@@ -72,7 +72,7 @@ export function NoteEditor({
     editorProps: {
       // TipTap adds role="textbox"; .note-content styles the rich text (D34).
       attributes: {
-        class: "note-content px-3 py-2 outline-none",
+        class: "note-content rounded-md px-3 py-2",
         "aria-label": "Note content",
         "aria-multiline": "true",
       },
@@ -138,14 +138,14 @@ export function NoteEditor({
           setTitle(event.target.value);
           handleEdit();
         }}
-        className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-2xl font-semibold"
+        className="min-w-0 rounded-md border border-zinc-300 bg-white px-3 py-2 text-2xl font-semibold"
       />
       {editor && <EditorToolbar editor={editor} />}
       {/* The box is server-rendered, so the page doesn't shift when the editor mounts. As a grid, it
           stretches the editor to its full height, so a click anywhere in it focuses the editor. */}
       <EditorContent
         editor={editor}
-        className="grid min-h-64 rounded-md border border-zinc-300 bg-white focus-within:border-zinc-500 focus-within:ring-2 focus-within:ring-zinc-300"
+        className="grid min-h-64 min-w-0 rounded-md border border-zinc-300 bg-white focus-within:border-zinc-500 focus-within:ring-2 focus-within:ring-zinc-300"
       />
       <div className="flex flex-wrap items-center gap-3">
         <button

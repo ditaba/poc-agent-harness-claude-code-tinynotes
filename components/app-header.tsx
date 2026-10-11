@@ -6,8 +6,8 @@ import { SignOutButton } from "./sign-out-button";
 export function AppHeader({ email }: { email: string }) {
   return (
     <header className="border-b border-zinc-200">
-      <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-4 px-4 py-3">
-        <Link href="/notes" className="text-lg font-semibold">
+      <div className="page-container flex items-center justify-between gap-4 py-3">
+        <Link href="/notes" className="shrink-0 text-lg font-semibold">
           TinyNotes
         </Link>
         <div className="flex min-w-0 items-center gap-3">

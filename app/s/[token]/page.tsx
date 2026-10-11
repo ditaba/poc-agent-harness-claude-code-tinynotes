@@ -35,7 +35,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function SharedNotePage({ params }: Props) {
   const note = await loadSharedNote((await params).token);
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-8">
+    <main className="page-container py-8">
       <article>
         <h1 className="text-2xl font-semibold">{note.title || "Untitled"}</h1>
         <p className="mt-2 text-sm text-zinc-600">

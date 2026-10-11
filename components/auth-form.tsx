@@ -81,7 +81,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
   }
 
   return (
-    <div className="w-full">
+    <div className="mx-auto w-full max-w-sm">
       <h1 className="text-2xl font-semibold">{copy.heading}</h1>
       <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
         <label className="flex flex-col gap-1 text-sm font-medium">

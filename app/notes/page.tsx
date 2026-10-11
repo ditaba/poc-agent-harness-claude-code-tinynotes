@@ -17,7 +17,7 @@ export default async function NotesPage() {
   return (
     <>
       <AppHeader email={user.email} />
-      <main className="mx-auto w-full max-w-3xl px-4 py-8">
+      <main className="page-container py-8">
         <div className="flex items-center justify-between gap-4">
           <h1 className="text-2xl font-semibold">Your notes</h1>
           <NewNoteButton />

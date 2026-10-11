@@ -148,7 +148,7 @@ export function EditorToolbar({ editor }: { editor: Editor }) {
           aria-pressed={buttons[index].pressed}
           aria-disabled={!buttons[index].available}
           tabIndex={focusIndex === index ? 0 : -1}
-          className="rounded px-3 py-2 font-medium hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-700 aria-disabled:opacity-40 aria-pressed:bg-zinc-900 aria-pressed:text-white"
+          className="rounded px-3 py-2 font-medium hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-700 aria-disabled:opacity-40 aria-disabled:focus-visible:opacity-100 aria-pressed:bg-zinc-900 aria-pressed:text-white"
         >
           {button.label}
         </button>

@@ -11,7 +11,7 @@ export default async function SignUpPage() {
     redirect("/notes");
   }
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-sm flex-col justify-center px-4 py-12">
+    <main className="page-container flex min-h-screen flex-col justify-center py-12">
       <AuthForm mode="sign-up" />
     </main>
   );

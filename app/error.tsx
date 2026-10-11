@@ -4,7 +4,7 @@
 // already logged the details; the client only gets a digest, never the message.
 export default function ErrorPage({ reset }: { reset: () => void }) {
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-8">
+    <main className="page-container py-8">
       <h1 className="text-2xl font-semibold">Something went wrong</h1>
       <button
         type="button"

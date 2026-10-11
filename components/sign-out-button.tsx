@@ -43,7 +43,7 @@ export function SignOutButton() {
       type="button"
       onClick={handleClick}
       disabled={isPending}
-      className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60"
+      className="shrink-0 rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium whitespace-nowrap hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60"
     >
       Sign out
     </button>

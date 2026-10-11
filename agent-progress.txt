@@ -1118,3 +1118,65 @@ Unable to create .git/index.lock: Permission denied. Approved require_escalated
 retry succeeds. Staged diff contains only eight task-owned paths; prd.json has
 only M7-readme-cleanup passes false -> true staged, with the initial human
 blocked-field removal still unstaged. No pre-existing staged changes existed.
+
+## 2026-10-11 – M7-visual (passes)
+
+Selected the only eligible task; M5-public-page and M6-toolbar pass. Initial
+unstaged human change removes M5-share-panel's historical blocked field from
+prd.json. Preserved separately; no pre-existing staged changes.
+
+Changes: shared .page-container (768 px maximum, 16 px side padding) on every
+rendered page and the app header; auth forms retain a readable inner width.
+Removed scaffold dark theme, used the already-loaded Geist font, added a global
+2 px focus-visible outline for links/buttons/inputs/contenteditable, restored
+editor outline, and kept unavailable toolbar focus outlines at full opacity.
+Constrained title/editor widths, wrapped long text and kept header controls from
+shrinking. Product diff is CSS/class-only; exact copy, roles, ARIA and behavior
+remain unchanged. No dependency, loop/configuration, push or deployment changes.
+
+Read AGENTS/project rules, PRD/progress, relevant SPEC §2/§5–§7/§9/§11/§14 and
+all eight required repository skills. Read installed Next 16.4 CSS guide and
+Context7 /tailwindlabs/tailwindcss.com component layers/focus/overflow guidance.
+
+Playwright MCP on bun run dev --port 3001, process-only BETTER_AUTH_URL override:
+- 375x800: sign-in/sign-up/notes scrollWidth 375 <= innerWidth 375; editor/public
+  long-content pages scrollWidth 360 <= 375 (vertical scrollbar). All five main
+  containers compute max-width 768 px. Screenshots taken and visually reviewed:
+  .playwright-mcp/m7-{sign-in,sign-up,notes,editor,public}-phone.png (ignored).
+- Stress fixture: 198-char unbroken title, long email, 750-char unbroken paragraph,
+  share URL and Shared list badge fit without horizontal page overflow. Save,
+  reload and public rendering retain content (SPEC steps 8/10/11/15/16/17 subset).
+- Real Tab navigation: auth email/password/submit/navigation links; signed-in
+  header, All notes, Title, toolbar, Note content, Save/Delete, share input,
+  Copy/Disable; notes New note and row; private Create share link; generic 404
+  Go to TinyNotes. All reached elements match :focus-visible with 2 px outline.
+  Arrow keys traversed all twelve toolbar buttons; unavailable buttons remain
+  focusable with opacity 1 when focused. Focus screenshots visually reviewed,
+  including editor and disabled Redo; roving keyboard model remains intact.
+- Code-block stress: signed-out private-context public page width 375, pre width
+  343 with internal scrollWidth 7413; no interactive editor controls. Editor
+  wraps its code line and remains within page width. Public code screenshot
+  .playwright-mcp/m7-public-code-phone.png visually reviewed.
+- At desktop 1280x900, main and header both measure 768 px; desktop screenshot
+  visually reviewed. Emulated dark preference still computes white background
+  and #171717 foreground. Static dark-theme/variant search returns no matches.
+- No browser errors/warnings on successful routes. Deliberate generic 404 probe
+  adds the expected browser failed-resource 404 entry, with no app exception.
+- Dev server stopped; exact task email removed through openDatabase with foreign
+  keys/cascades; remaining matching users 0. Existing users/data preserved.
+  Initial inline bun cleanup command lost quotes through PowerShell and failed
+  parsing before any DB change; ignored script retry succeeded and was removed.
+
+Verification: bun run format; bun test (118 pass / 0 fail); bun run lint; bun run
+ typecheck exit 0. Default-sandbox dev/build fail with EPERM uv_spawn
+C:\Users\tbd\.bun\bin\bun.exe; approved require_escalated retries succeed.
+bun run build exits 0 and lists all routes. No permission bypass or unverified
+success. Diff inspection confirms only CSS/classes in product files.
+Next: M7-checklist-1-14; no other task implemented this session.
+Final post-build typecheck, Prettier check and diff check exit 0. Initial Git
+staging failed: Unable to create .git/index.lock: Permission denied. Requesting
+reviewed escalation for task-only staging/commit; human PRD removal is excluded
+by staging only the M7-visual passes hunk.
+Approved staging succeeds. Inspected cached diff: sixteen task-owned paths,
+prd.json only M7-visual passes false -> true. The initial human blocked-field
+removal remains exactly unstaged; no unrelated file changes are staged.

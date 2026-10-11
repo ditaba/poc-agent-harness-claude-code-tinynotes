@@ -34,7 +34,7 @@ export default async function NotePage({ params }: Props) {
   return (
     <>
       <AppHeader email={user.email} />
-      <main className="mx-auto w-full max-w-3xl px-4 py-8">
+      <main className="page-container py-8">
         <Link
           href="/notes"
           className="text-sm font-medium text-zinc-600 hover:text-zinc-900 hover:underline"
