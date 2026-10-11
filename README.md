@@ -28,6 +28,10 @@ codex login
 Requires a Codex CLI with `exec --approve-for-me`, Bun and Node/npm/npx.
 Independent Codex rules and skills live in `.codex/`, loaded through `AGENTS.md`.
 Playwright and Context7 MCP settings are supplied by the script.
+The Codex prompt is sent through stdin to preserve all lines on Windows.
+The loop stops with exit code `3` if an iteration returns without a new commit
+and without a completion/blocked marker. Its last Codex response is saved in
+`.ralph/last-message.txt` for diagnosis.
 See [RALPH.md](RALPH.md) for setup, permissions, blocked tasks and resume behavior.
 
 ## Mapping cấu hình Claude Code → Codex

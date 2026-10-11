@@ -85,7 +85,13 @@ sandboxing to retry. Organization policies can still restrict operations.
 
 Each iteration streams Codex execution to the terminal and reads stop markers
 only from `--output-last-message`, avoiding false stops from echoed prompts.
-Exit codes: `0` completion or iteration limit, `2` blocked, otherwise the CLI's
+The Codex prompt is passed through stdin (`codex exec ... -`), preserving the
+entire multiline prompt through Windows `.cmd` wrappers.
+An iteration without a new Git commit and without a stop marker ends the loop
+with exit code `3`, preventing repeated sessions that only read files.
+The last Codex response is retained in `.ralph/last-message.txt` (Git ignored).
+Exit codes: `0` completion or iteration limit, `2` blocked, `3` no commit,
+otherwise the CLI's
 failure code (or `1` for setup/argument errors). Resume using the same command:
 progress is read from disk, not a resumed chat session.
 

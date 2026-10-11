@@ -51,8 +51,8 @@ if [[ "$AGENT" == codex ]]; then
     exit 1
   fi
 fi
-LAST_MESSAGE=$(mktemp)
-trap 'rm -f -- "$LAST_MESSAGE"' EXIT
+mkdir -p .ralph
+LAST_MESSAGE=.ralph/last-message.txt
 CODEX_OUTPUT=$LAST_MESSAGE
 if command -v cygpath >/dev/null 2>&1; then CODEX_OUTPUT=$(cygpath -w "$LAST_MESSAGE"); fi
 PROMPT="Read prd.json, agent-progress.txt, SPEC.md, $AGENT_ENTRY and $RULES_FILE from disk first.
@@ -82,6 +82,7 @@ if (( MAX_ITERATIONS == 0 )); then ITERATION_LIMIT=unlimited; fi
 echo "Ralph: agent=$AGENT, max-iterations=$ITERATION_LIMIT"
 for ((iteration=1; MAX_ITERATIONS == 0 || iteration<=MAX_ITERATIONS; iteration++)); do
   echo "--- Iteration $iteration / $ITERATION_LIMIT ---"
+  before_head=$(git rev-parse HEAD)
   : > "$LAST_MESSAGE"
   if [[ "$AGENT" == codex ]]; then
     # Stream progress; inspect ONLY the final response for control markers.
@@ -93,7 +94,9 @@ for ((iteration=1; MAX_ITERATIONS == 0 || iteration<=MAX_ITERATIONS; iteration++
       -c 'mcp_servers.context7.url="https://mcp.context7.com/mcp"'
       --output-last-message "$CODEX_OUTPUT")
     if [[ -n "${CODEX_MODEL:-}" ]]; then codex_args+=(--model "$CODEX_MODEL"); fi
-    if "$AGENT_BIN" "${codex_args[@]}" "$PROMPT"; then
+    # Windows .cmd wrappers truncate multiline command-line arguments. Stdin
+    # preserves the entire prompt across Git Bash -> cmd.exe -> Codex.
+    if printf '%s\n' "$PROMPT" | "$AGENT_BIN" "${codex_args[@]}" -; then
       result=$(cat "$LAST_MESSAGE")
       if [[ -z "$result" ]]; then echo "Error: Codex returned no final message." >&2; exit 1; fi
     else
@@ -119,6 +122,14 @@ for ((iteration=1; MAX_ITERATIONS == 0 || iteration<=MAX_ITERATIONS; iteration++
     echo "Blocked: review prd.json and agent-progress.txt, resolve the reason,"
     echo "remove the task's blocked field, then rerun."
     exit 2
+  fi
+  after_head=$(git rev-parse HEAD)
+  if [[ "$after_head" == "$before_head" ]]; then
+    echo "Error: iteration $iteration finished without a new commit. Stopping to avoid a no-progress loop." >&2
+    echo "Final response:" >&2
+    echo "$result" >&2
+    echo "Codex final response is saved in $LAST_MESSAGE (when using Codex). Review it before restarting." >&2
+    exit 3
   fi
   if (( MAX_ITERATIONS == 0 || iteration < MAX_ITERATIONS )); then sleep 2; fi
 done

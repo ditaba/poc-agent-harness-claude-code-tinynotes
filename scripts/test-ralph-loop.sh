@@ -15,6 +15,8 @@ cat > "$FIXTURE/bin/codex" <<'EOF'
 #!/usr/bin/env bash
 if [[ "${2:-}" == --help ]]; then echo '--approve-for-me'; exit 0; fi
 printf '%s\n' "$@" >> "$CALL_LOG"
+[[ "${!#}" == - ]] || { echo 'Expected stdin prompt' >&2; exit 9; }
+cat > "$PROMPT_LOG"
 while [[ $# -gt 0 ]]; do
   if [[ "$1" == --output-last-message ]]; then output=$2; shift; fi
   shift
@@ -46,6 +48,17 @@ export -f codex.cmd
 # Skip real delays in mock tests, including the unlimited-run regression.
 sleep() { :; }
 export -f sleep
+git() {
+  if [[ "$1" == rev-parse && "$2" == HEAD ]]; then
+    if [[ "$MODE" == no-progress ]]; then echo fixed-head; else
+      echo "mock-head-$(grep -c '^exec$\|^--dangerously-skip-permissions$' "$CALL_LOG" || true)"
+    fi
+  else
+    command git "$@"
+  fi
+}
+export -f git
+export PROMPT_LOG="$FIXTURE/prompt"
 export CALL_LOG="$FIXTURE/calls" MODE=success FINAL_MESSAGE=continue
 check() {
   local expected=$1 status=0
@@ -62,8 +75,11 @@ check 0 codex 2
 [[ $(grep -c '^exec$' "$CALL_LOG") == 2 ]]
 grep -q 'mcp_servers.context7.url=' "$CALL_LOG"
 grep -q -- '--approve-for-me' "$CALL_LOG"
-grep -q '.codex/rules/project.md' "$CALL_LOG"
-if grep -q 'CLAUDE.md\|\.claude/' "$CALL_LOG"; then
+grep -q '.codex/rules/project.md' "$PROMPT_LOG"
+grep -q 'Pick ONE task' "$PROMPT_LOG"
+grep -q 'then commit ONLY task-owned files' "$PROMPT_LOG"
+grep -q 'Only when EVERY task' "$PROMPT_LOG"
+if grep -q 'CLAUDE.md\|\.claude/' "$PROMPT_LOG"; then
   echo 'FAIL: Codex prompt depends on Claude files.' >&2
   exit 1
 fi
@@ -78,6 +94,12 @@ export MODE=delayed
 check 0 codex
 [[ $(grep -c '^exec$' "$CALL_LOG") == 23 ]]
 grep -q 'max-iterations=unlimited' "$FIXTURE/output"
+export MODE=success
+export MODE=no-progress FINAL_MESSAGE='Read all five files. No files changed.'
+check 3 codex
+[[ $(grep -c '^exec$' "$CALL_LOG") == 1 ]]
+grep -q 'without a new commit' "$FIXTURE/output"
+grep -q 'No files changed' "$FIXTURE/.ralph/last-message.txt"
 export MODE=success
 export FINAL_MESSAGE='<blocked>M4-save-errors</blocked>'
 check 2 codex
