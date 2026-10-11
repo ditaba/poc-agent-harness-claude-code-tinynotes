@@ -590,7 +590,7 @@
       "Playwright MCP (bun run dev): §11 steps 14, 23 and 24",
       "NOT_FOUND: with the note open, run bun -e 'import { Database } from \"bun:sqlite\"; new Database(\"data/app.db\").run(\"DELETE FROM note WHERE id = ?\", [\"<id>\"])', then click Save"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "M4-delete",

@@ -784,3 +784,38 @@ exit 0. Test data removed afterwards: data/app.db has no users, sessions, accoun
 Left alone (staged human changes, not part of this task): AGENTS.md, README.md, package-lock.json.
 Next: M4-save-errors (client size check before callAction, the UNAUTHENTICATED "Sign in" link with target="_blank",
 then steps 14, 23, 24 and the SQL-deleted NOT_FOUND check).
+
+## 2026-10-11 – M4-save-errors (passes)
+
+Selected the eligible task after M4-save; initial git status was clean (no staged or unstaged human changes).
+
+Changes:
+- components/note-editor.tsx checks utf8ByteLength of editor.getJSON() serialized at the click against
+  CONTENT_MAX_BYTES before starting the transition or calling the action (NOTE-12, D40).
+- UNAUTHENTICATED renders the exact error copy and a Sign in link to /sign-in with target="_blank" and
+  rel="noopener noreferrer", preserving the editor tab and its unsaved edits (R5).
+- Existing callAction handling covers rejected calls and the existing action covers NOT_FOUND; verified both.
+
+Playwright MCP acceptance on bun run dev --port 3001 (BETTER_AUTH_URL overridden only for the process;
+port 3000 was serving another app):
+- Step 14: dispatched text/plain paste events containing 153600 bytes then another 2097152 bytes. Editor
+  text lengths were 153600 and 2250752. Both Save clicks showed the exact 100 KB error; request listener
+  recorded zero POSTs, and Save stayed enabled. Replacing content with short text then Save succeeded.
+- Step 23: signed out using Sign out in another tab. Save showed the session-expiry copy and Sign in link.
+  Clicking it opened a real popup at /sign-in; signing in there let the original tab Save -> Saved, with
+  its "Edits survive expired session" content intact.
+- Step 24: stopped the test server, edited then clicked Save. Exact generic error shown, Save enabled again,
+  and "Offline unsaved work" remained. Restarted the server afterwards.
+- NOTE-15: created/opened another note, deleted its row with parameterized SQL, then clicked Save. Exact
+  "This note no longer exists." message, Save enabled, editor content retained. SQL count after Save was 0.
+- A first offline assertion used an ambiguous role=alert locator (Next adds a route announcer); repeated
+  with p[role=alert] and captured all required evidence. A first bun -e SQL command failed Windows quote
+  parsing; a temporary .ts script outside the repo completed the deletion and count checks.
+- Removed only this task's test user (and cascaded auth rows), leaving other data intact; test server stopped.
+
+Checks: bun run format, bun test (118 pass / 0 fail), bun run lint, bun run typecheck,
+bun test lib/call-action lib/notes/validation (21 pass), and bun run build all exit 0.
+Default-sandbox dev/build attempts failed with EPERM uv_spawn C:\Users\tbd\.bun\bin\bun.exe;
+approved require_escalated retries succeeded. No sandbox bypass or configuration changes.
+Docs: installed Next forms guide and Context7 React useTransition docs (post-await nested transition).
+Only task-owned component, prd.json and this log are committed. Next: M4-delete.

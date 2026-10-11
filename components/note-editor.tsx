@@ -7,7 +7,11 @@ import { callAction } from "@/lib/call-action";
 import { ERROR_MESSAGES } from "@/lib/errors";
 import { saveNoteAction } from "@/lib/notes/actions";
 import { editorExtensions } from "@/lib/notes/editor-extensions";
-import { TITLE_MAX_LENGTH } from "@/lib/notes/limits";
+import {
+  CONTENT_MAX_BYTES,
+  TITLE_MAX_LENGTH,
+  utf8ByteLength,
+} from "@/lib/notes/limits";
 import { MessageRegion, type Message } from "./message-region";
 
 export function NoteEditor({
@@ -56,12 +60,34 @@ export function NoteEditor({
     const input = { title, content: JSON.stringify(editor.getJSON()) };
     const editCountAtClick = editCount.current;
     setMessage(null); // starting an action clears its region (MSG-2)
+    if (utf8ByteLength(input.content) > CONTENT_MAX_BYTES) {
+      setMessage({ type: "error", content: ERROR_MESSAGES.CONTENT_TOO_LARGE });
+      return;
+    }
     startSaving(async () => {
       const result = await callAction(() => saveNoteAction(note.id, input));
       // Updates after an await need their own transition.
       startSaving(() => {
         if (!result.ok) {
-          setMessage({ type: "error", content: ERROR_MESSAGES[result.error] });
+          setMessage({
+            type: "error",
+            content:
+              result.error === "UNAUTHENTICATED" ? (
+                <>
+                  {ERROR_MESSAGES.UNAUTHENTICATED}{" "}
+                  <a
+                    href="/sign-in"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline"
+                  >
+                    Sign in
+                  </a>
+                </>
+              ) : (
+                ERROR_MESSAGES[result.error]
+              ),
+          });
         } else if (editCount.current === editCountAtClick) {
           setMessage({ type: "status", content: "Saved" });
         }
