@@ -1090,3 +1090,31 @@ post-build bun run typecheck exit 0. Initial Git staging fails with Unable to
 create .git/index.lock: Permission denied; approved require_escalated staging
 succeeds. Cached diff includes only four task-owned paths and only M6-toolbar's
 passes change in prd.json; the initial human blocked-field removal stays unstaged.
+
+## 2026-10-11 – M7-readme-cleanup (passes)
+
+Selected the eligible documentation/scaffold foundation task before M7 visual work;
+M5-public-page and M6-toolbar both pass. Initial unstaged human change in prd.json
+removes M5-share-panel's historical blocked field; preserved separately.
+
+Added README Setup with Bun 1.3.14, bun install, copying .env.example to .env,
+a real random secret of at least 32 characters, local URL/DB defaults, production
+build/start and dev commands, automatic migrations/environment validation, and
+all four SPEC §11 test commands. Existing README notes remain byte-for-byte after
+the new section. Deleted exactly the five unused public scaffold SVGs.
+Read project rules, SPEC §4/§11/§14 and repository Bun, TypeScript/security skills.
+No Next.js code or UI change; no library API lookup or Playwright UI acceptance
+required for this task. Asset-reference search over app/components/lib is empty.
+
+Verification: bun run format exits 0 with no unrelated formatter edits;
+bun test: 118 pass, 0 fail; bun run lint and bun run typecheck exit 0.
+Default-sandbox bun run build compiles but exits 1 at TypeScript subprocess:
+EPERM: operation not permitted, uv_spawn 'C:\Users\tbd\.bun\bin\bun.exe'.
+Approved require_escalated retry of bun run build exits 0, listing all app routes.
+No workaround or unverified success. git diff --check passes. Existing database
+preserved. No configuration/loop changes, push or deployment.
+Final post-build typecheck and diff check exit 0. Initial Git staging failed:
+Unable to create .git/index.lock: Permission denied. Approved require_escalated
+retry succeeds. Staged diff contains only eight task-owned paths; prd.json has
+only M7-readme-cleanup passes false -> true staged, with the initial human
+blocked-field removal still unstaged. No pre-existing staged changes existed.

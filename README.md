@@ -1,3 +1,43 @@
+## Setup
+
+Use Bun 1.3.14. From a fresh clone, install dependencies:
+
+```bash
+bun install
+```
+
+Copy `.env.example` to `.env` and replace `BETTER_AUTH_SECRET` with a real random
+secret of at least 32 characters. Keep `BETTER_AUTH_URL=http://localhost:3000`
+and `DB_PATH=data/app.db` for local use. Do not commit `.env` or `data/`.
+
+Build and run the production app:
+
+```bash
+bun run build && bun run start
+```
+
+Or run the development server:
+
+```bash
+bun run dev
+```
+
+Open http://localhost:3000. Build, start and dev run migrations first, creating
+the database if needed. A missing or invalid environment stops the command
+with a message naming the variable and pointing to `.env.example`.
+
+Run the checks from SPEC §11:
+
+```bash
+bun test
+bun run lint
+bun run typecheck
+bun run build
+```
+
+UI acceptance uses the manual checklist in [SPEC.md](SPEC.md), run through
+Playwright MCP. Run `bun run format` before validation and committing changes.
+
 ```
 branch:
     + initial

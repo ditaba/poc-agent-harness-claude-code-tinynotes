@@ -761,7 +761,7 @@
       "bun run lint",
       "bun run build"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "M7-checklist-1-14",
