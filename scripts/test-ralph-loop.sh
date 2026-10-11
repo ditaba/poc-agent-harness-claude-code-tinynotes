@@ -25,6 +25,10 @@ if [[ "$MODE" == failure ]]; then exit 7; fi
 if [[ "$MODE" == empty ]]; then exit 0; fi
 if command -v cygpath >/dev/null 2>&1; then output=$(cygpath -u "$output"); fi
 printf '%s\n' "$FINAL_MESSAGE" > "$output"
+if [[ "$MODE" == delayed ]]; then
+  count=$(grep -c '^exec$' "$CALL_LOG")
+  if (( count < 23 )); then echo continue > "$output"; fi
+fi
 EOF
 cp "$FIXTURE/bin/codex" "$FIXTURE/bin/codex.cmd"
 cat > "$FIXTURE/bin/claude" <<'EOF'
@@ -39,6 +43,9 @@ export FIXTURE
 # simulate the Windows shim without invoking cmd.exe or the real installed CLI.
 codex.cmd() { bash "$FIXTURE/bin/codex" "$@"; }
 export -f codex.cmd
+# Skip real delays in mock tests, including the unlimited-run regression.
+sleep() { :; }
+export -f sleep
 export CALL_LOG="$FIXTURE/calls" MODE=success FINAL_MESSAGE=continue
 check() {
   local expected=$1 status=0
@@ -67,11 +74,16 @@ touch "$FIXTURE/CLAUDE.md"
 export FINAL_MESSAGE='<complete>ALL_TASKS_DONE</complete>'
 check 0 codex
 [[ $(grep -c '^exec$' "$CALL_LOG") == 1 ]]
+export MODE=delayed
+check 0 codex
+[[ $(grep -c '^exec$' "$CALL_LOG") == 23 ]]
+grep -q 'max-iterations=unlimited' "$FIXTURE/output"
+export MODE=success
 export FINAL_MESSAGE='<blocked>M4-save-errors</blocked>'
-check 2 codex 3
+check 2 codex
 [[ $(grep -c '^exec$' "$CALL_LOG") == 1 ]]
 export MODE=failure
-check 7 codex 1
+check 7 codex
 export MODE=empty
 check 1 codex 1
 export MODE=success FINAL_MESSAGE='<complete>ALL_TASKS_DONE</complete>'
@@ -83,8 +95,12 @@ if grep -q '\.codex/' "$CALL_LOG"; then
   echo 'FAIL: Claude prompt depends on Codex files.' >&2
   exit 1
 fi
+check 0 claude
+check 0
+grep -q 'max-iterations=unlimited' "$FIXTURE/output"
 check 1 codex 0
 check 1 codex abc
+check 1 codex ''
 check 1 unknown
 check 1 codex 1 extra
 check 0 --help

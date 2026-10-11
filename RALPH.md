@@ -53,7 +53,7 @@ Run from **Git Bash** on Windows (or Bash in WSL/Linux/macOS):
 
 ```bash
 codex login                    # One-time CLI authentication
-./ralph.sh codex                # Default: at most 20 fresh sessions
+./ralph.sh codex                # Default: unlimited; run until all tasks are done
 ./ralph.sh codex 5              # Smaller first run
 CODEX_MODEL=your-model ./ralph.sh codex 5  # Optional; otherwise CLI default
 ```
@@ -107,7 +107,12 @@ Ralph stops when:
 
 - All tasks are marked complete, OR
 - A task is blocked and needs your decision (exit code 2), OR
-- It reaches the iteration limit
+- It reaches an explicitly supplied iteration limit, OR
+- The CLI fails
+
+Omitting `max-iterations` removes the iteration limit for either agent:
+`./ralph.sh codex`, `./ralph.sh claude`, and `./ralph.sh` (Claude) run until
+completion, a blocked task, a CLI error, or interruption with Ctrl+C.
 
 ### Blocked tasks
 

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # One fresh agent session per task. Use Git Bash, WSL, Linux or macOS.
 set -euo pipefail
-usage() { echo "Usage: $0 [claude|codex] [max-iterations] (default: 20)"; }
+usage() { echo "Usage: $0 [claude|codex] [max-iterations] (default: unlimited)"; }
 AGENT=claude
-MAX_ITERATIONS=20
+MAX_ITERATIONS=0 # Internal sentinel: no iteration limit when omitted.
 if [[ $# -gt 0 ]]; then
   case "$1" in
     claude|codex) AGENT=$1; shift ;;
@@ -12,8 +12,16 @@ if [[ $# -gt 0 ]]; then
     *) usage >&2; exit 1 ;;
   esac
 fi
-if [[ $# -gt 0 ]]; then MAX_ITERATIONS=$1; shift; fi
-if [[ $# -ne 0 || ! "$MAX_ITERATIONS" =~ ^[1-9][0-9]*$ ]]; then
+if [[ $# -gt 0 ]]; then
+  MAX_ITERATIONS=$1
+  shift
+  if [[ ! "$MAX_ITERATIONS" =~ ^[1-9][0-9]*$ ]]; then
+    echo "Error: max-iterations must be a positive integer." >&2
+    usage >&2
+    exit 1
+  fi
+fi
+if [[ $# -ne 0 ]]; then
   echo "Error: max-iterations must be a positive integer." >&2
   usage >&2
   exit 1
@@ -69,9 +77,11 @@ Only when EVERY task has passes=true, output <complete>ALL_TASKS_DONE</complete>
 Use control markers only in the final response, never in explanations or quoted instructions.
 EOF
 )"
-echo "Ralph: agent=$AGENT, max-iterations=$MAX_ITERATIONS"
-for ((iteration=1; iteration<=MAX_ITERATIONS; iteration++)); do
-  echo "--- Iteration $iteration / $MAX_ITERATIONS ---"
+ITERATION_LIMIT=$MAX_ITERATIONS
+if (( MAX_ITERATIONS == 0 )); then ITERATION_LIMIT=unlimited; fi
+echo "Ralph: agent=$AGENT, max-iterations=$ITERATION_LIMIT"
+for ((iteration=1; MAX_ITERATIONS == 0 || iteration<=MAX_ITERATIONS; iteration++)); do
+  echo "--- Iteration $iteration / $ITERATION_LIMIT ---"
   : > "$LAST_MESSAGE"
   if [[ "$AGENT" == codex ]]; then
     # Stream progress; inspect ONLY the final response for control markers.
@@ -110,6 +120,6 @@ for ((iteration=1; iteration<=MAX_ITERATIONS; iteration++)); do
     echo "remove the task's blocked field, then rerun."
     exit 2
   fi
-  if (( iteration < MAX_ITERATIONS )); then sleep 2; fi
+  if (( MAX_ITERATIONS == 0 || iteration < MAX_ITERATIONS )); then sleep 2; fi
 done
 echo "Reached $MAX_ITERATIONS iterations. Review git log and agent-progress.txt."

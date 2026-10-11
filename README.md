@@ -21,7 +21,7 @@ In Git Bash on Windows (or Bash on WSL/Linux/macOS):
 
 ```bash
 codex login
-./ralph.sh codex       # Up to 20 iterations
+./ralph.sh codex       # No iteration limit; run until all tasks are done
 ./ralph.sh codex 5     # Up to 5 iterations
 ```
 
