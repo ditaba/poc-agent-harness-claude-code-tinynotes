@@ -621,7 +621,7 @@
       "bun run build",
       "Playwright MCP (bun run dev): §11 step 22 without the share-link check, then the M4 Done-when steps"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "M5-share-panel",

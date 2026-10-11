@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { db } from "../db";
 import type { ActionResult } from "../errors";
 import { getCurrentUser, type CurrentUser } from "../session";
-import { createNote, updateNote } from "./repo";
+import { createNote, deleteNote, updateNote } from "./repo";
 import { validateNoteInput, type NoteInput } from "./validation";
 
 // Server Actions are public endpoints, so each one checks the session itself (D25, §10).
@@ -41,6 +41,17 @@ export async function saveNoteAction(
     revalidatePath("/notes");
     revalidatePath(`/notes/${id}`);
     return { ok: true, data: { updatedAt } };
+  });
+}
+
+export async function deleteNoteAction(id: string): Promise<ActionResult> {
+  return runNoteAction((user) => {
+    if (!deleteNote(db, user.id, id)) {
+      return { ok: false, error: "NOT_FOUND" }; // missing or not owned (NOTE-15)
+    }
+    // No revalidatePath: it would re-render the current page, which is now a 404. The client then calls
+    // router.replace("/notes"), and /notes is dynamic, so it is fetched fresh (D41).
+    return { ok: true, data: undefined };
   });
 }
 

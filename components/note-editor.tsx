@@ -2,10 +2,11 @@
 
 import type { JSONContent } from "@tiptap/core";
 import { EditorContent, useEditor } from "@tiptap/react";
+import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { callAction } from "@/lib/call-action";
-import { ERROR_MESSAGES } from "@/lib/errors";
-import { saveNoteAction } from "@/lib/notes/actions";
+import { ERROR_MESSAGES, type ErrorCode } from "@/lib/errors";
+import { deleteNoteAction, saveNoteAction } from "@/lib/notes/actions";
 import { editorExtensions } from "@/lib/notes/editor-extensions";
 import {
   CONTENT_MAX_BYTES,
@@ -13,6 +14,29 @@ import {
   utf8ByteLength,
 } from "@/lib/notes/limits";
 import { MessageRegion, type Message } from "./message-region";
+
+// UNAUTHENTICATED adds a "Sign in" link that opens in a new tab, so unsaved edits stay in this one (§7, R5).
+function errorMessage(code: ErrorCode): Message {
+  return {
+    type: "error",
+    content:
+      code === "UNAUTHENTICATED" ? (
+        <>
+          {ERROR_MESSAGES.UNAUTHENTICATED}{" "}
+          <a
+            href="/sign-in"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline"
+          >
+            Sign in
+          </a>
+        </>
+      ) : (
+        ERROR_MESSAGES[code]
+      ),
+  };
+}
 
 export function NoteEditor({
   note,
@@ -22,9 +46,13 @@ export function NoteEditor({
   // Title and editor start from the page load. Later props (e.g. after a save's revalidation) are ignored,
   // so they never reset what the user is typing.
   const [title, setTitle] = useState(note.title);
-  // The editor's message region: results of Save (MSG-1, D37).
+  // The editor's message region: results of Save and Delete (MSG-1, D37).
   const [message, setMessage] = useState<Message | null>(null);
   const [isSaving, startSaving] = useTransition();
+  const [isDeleting, startDeleting] = useTransition();
+  // Save and Delete are both disabled while either is pending (D38).
+  const isBusy = isSaving || isDeleting;
+  const router = useRouter();
   // Bumped on every title or content change. A save shows "Saved" only if it hasn't moved since the click (D38).
   const editCount = useRef(0);
 
@@ -69,29 +97,30 @@ export function NoteEditor({
       // Updates after an await need their own transition.
       startSaving(() => {
         if (!result.ok) {
-          setMessage({
-            type: "error",
-            content:
-              result.error === "UNAUTHENTICATED" ? (
-                <>
-                  {ERROR_MESSAGES.UNAUTHENTICATED}{" "}
-                  <a
-                    href="/sign-in"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline"
-                  >
-                    Sign in
-                  </a>
-                </>
-              ) : (
-                ERROR_MESSAGES[result.error]
-              ),
-          });
+          setMessage(errorMessage(result.error));
         } else if (editCount.current === editCountAtClick) {
           setMessage({ type: "status", content: "Saved" });
         }
         // Otherwise no status: the edits made since the click aren't saved (NOTE-7).
+      });
+    });
+  }
+
+  function handleDelete() {
+    if (!window.confirm("Delete this note? This can't be undone.")) {
+      return; // Cancel → nothing changes, not even the region (NOTE-14, D16)
+    }
+    setMessage(null); // starting an action clears its region (MSG-2)
+    startDeleting(async () => {
+      const result = await callAction(() => deleteNoteAction(note.id));
+      // Updates after an await need their own transition. The navigation runs inside it, so "Deleting…"
+      // stays until /notes has loaded. replace() keeps the deleted note out of the history (D41).
+      startDeleting(() => {
+        if (result.ok) {
+          router.replace("/notes");
+        } else {
+          setMessage(errorMessage(result.error));
+        }
       });
     });
   }
@@ -120,10 +149,18 @@ export function NoteEditor({
         <button
           type="button"
           onClick={handleSave}
-          disabled={isSaving}
+          disabled={isBusy}
           className="rounded-md bg-zinc-900 px-4 py-2 font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSaving ? "Saving…" : "Save"}
+        </button>
+        <button
+          type="button"
+          onClick={handleDelete}
+          disabled={isBusy}
+          className="rounded-md border border-red-300 px-4 py-2 font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isDeleting ? "Deleting…" : "Delete"}
         </button>
         <MessageRegion message={message} />
       </div>

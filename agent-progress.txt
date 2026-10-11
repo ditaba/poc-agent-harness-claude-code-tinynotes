@@ -819,3 +819,67 @@ Default-sandbox dev/build attempts failed with EPERM uv_spawn C:\Users\tbd\.bun\
 approved require_escalated retries succeeded. No sandbox bypass or configuration changes.
 Docs: installed Next forms guide and Context7 React useTransition docs (post-await nested transition).
 Only task-owned component, prd.json and this log are committed. Next: M4-delete.
+
+## 2026-10-11 – M4-delete (passes)
+
+Picked because it was the only eligible task: its dep M4-save-errors passes, and M5, M6 and M7 all depend on it.
+Initial git status was clean (no staged or unstaged human changes).
+
+What changed:
+- lib/notes/actions.ts: deleteNoteAction(id) through the shared runNoteAction helper (no session → UNAUTHENTICATED,
+  throw → console.error + INTERNAL). deleteNote(db, user.id, id) false → NOT_FOUND (missing or not owned, NOTE-15),
+  else { ok: true, data: undefined }. No revalidatePath (§9: it would re-render the now-404 page).
+- components/note-editor.tsx: "Delete" button after Save. handleDelete: window.confirm("Delete this note? This can't
+  be undone.") → Cancel returns before touching anything (the region keeps e.g. "Saved"). OK clears the region (MSG-2),
+  then a useTransition runs callAction(() => deleteNoteAction(id)); the nested transition after the await does
+  router.replace("/notes") on ok (so "Deleting…" lasts until /notes has loaded) or shows the error. Both buttons use
+  isBusy = isSaving || isDeleting (D38). The UNAUTHENTICATED copy + new-tab "Sign in" link moved into a module-level
+  errorMessage(code) helper shared by Save and Delete.
+
+Verified with Playwright MCP (`bun run dev --port 3001`, BETTER_AUTH_URL=http://localhost:3001 for the process only;
+port 3000 is another project's Next server). Fresh DB (no users or notes at the start):
+- Step 2 (slow): sign-up shows "Creating account…" disabled → /notes with "No notes yet. Create your first one." + "New note".
+- Step 8 without Sharing: New note → /notes/{uuid}, "Untitled – TinyNotes", empty title (placeholder "Untitled",
+  maxlength 200), "← All notes" → /notes, editor textbox "Note content", buttons [Save, Delete], one empty status + alert.
+- Step 10 (slow) + Ctrl+B: Ctrl+B gave <p>Milk <strong>eggs</strong></p>. Save → "Saving…" with Save AND Delete
+  disabled → "Saved" (both enabled). Typing clears "Saved". Save + a title edit during "Saving…" → no "Saved"; Save
+  again → "Saved". (A first race attempt typed Backspace at caret 0, so nothing changed and "Saved" appeared correctly;
+  redone with End+Backspace.)
+- Step 11: h2 + bullet list via input rules, saved, reload → identical editor HTML and title; list shows "Groceries" first.
+- Step 12: second note saved with title "   " → "Untitled" listed above "Groceries".
+- Step 13: maxlength removed, 201 chars → "Title must be 200 characters or fewer."; stays while typing in title and
+  editor; Save empties the region while pending, then "Saved".
+- Step 14: pasted 150 KB then 2 MB more (editor text 153601 / 2250753 chars) → "This note is too large to save (max
+  100 KB)." both times, 0 POST requests, Save enabled.
+- Step 22 (slow) without the share link: a MutationObserver logged the buttons. Cancel (dialog "Delete this note? This
+  can't be undone.") → no change at all, "Saved" still shown, no navigation. OK → "Save(disabled) | Deleting…(disabled)"
+  for ~1.7 s → /notes listing only "Groceries"; the row is gone from the DB. Back goes to the earlier /notes entry, not
+  the deleted note (replace).
+- NOTE-15 delete, missing: note "Fourth" deleted with SQL, then Delete → OK → "This note no longer exists." in the
+  editor region (the previous "Saved" cleared), both buttons enabled, URL unchanged.
+- NOTE-15 delete, not owned: as Bob, page.route rewrote his Delete request body ["<bob id>"] to ["<Ada's Groceries
+  id>"] → "This note no longer exists."; Ada's and Bob's notes both still in the DB. Then Bob's normal Delete → /notes
+  empty state.
+- Step 21 (NOTE-3, NOTE-15): Bob's /notes is the empty state; Ada's /notes/{id} → HTTP 404 "Page not found".
+- Step 23 + delete: signed out in a second tab. Save → "Your session has expired. Sign in again to continue. Sign in"
+  (href /sign-in, target _blank, rel noopener noreferrer). Delete → OK → the same message; the server log shows the
+  POST and the note stayed. The link opened a real popup at /sign-in; after signing in there, Save in the original
+  tab → "Saved" with the unsaved edit kept.
+- Step 24 + delete: server killed. Save → "Something went wrong. Please try again.", "Save" enabled, edit kept.
+  Delete → OK → log: region cleared + "Deleting…(disabled)" → "Something went wrong. Please try again." with "Delete"
+  enabled again (D39). Server restarted.
+- Console: no warnings at all (no hydration warnings). Errors only from the deliberate offline step (refused
+  connections, callAction's "Action call failed") and Bob's expected 404. No errors in the server logs.
+Verified with Playwright MCP (`bun run build && bun run start` on 3001): sign in as Ada, create + save "Prod temp",
+visit /notes (cached with it), open it, Delete → OK → /notes without "Prod temp"; its URL now returns 404.
+
+Playwright gotcha: Playwright MCP intercepts native dialogs. A page.once("dialog") handler in run-code races with it
+and the run-code result is lost (the script keeps running in the background). Use browser_click + browser_handle_dialog,
+and record transient UI states with a MutationObserver installed beforehand (it survives router.replace, a soft
+navigation). Each run-code call has its own globalThis, so keep state in the page (window.*) instead.
+
+Checks: bun run format, `bunx prettier --check .`, bun test (118 pass), bun test lib/call-action lib/format-date
+(8 pass), bun run lint, bun run typecheck (before and after the build), bun run build all exit 0.
+Test data removed: data/app.db has no users, sessions, accounts, verifications or notes (orphans removed explicitly
+because the ad-hoc cleanup connection had foreign_keys off).
+Next: M5-share-panel or M6-toolbar (both depend only on M4-delete).
