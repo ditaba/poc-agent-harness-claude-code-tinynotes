@@ -404,7 +404,7 @@
       "Playwright MCP (bun run dev): §11 step 6 and the sign-in part of step 7, signing out by clearing cookies where needed (CLAUDE.md, Playwright sign-out)",
       "Playwright MCP (bun run build && bun run start): §11 step 27"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "M3-notes-shell",

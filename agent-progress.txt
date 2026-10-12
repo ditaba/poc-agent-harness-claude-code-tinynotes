@@ -18,6 +18,7 @@ ralph.ts gives every iteration this section, so record here what you would other
 - TipTap 3.31 server validation: `Node.fromJSON(getSchema(editorExtensions), json)` throws RangeError on unknown node/mark types and silently drops unknown attrs; `toJSON()` adds default attrs (e.g. heading level), so normalized JSON can be larger than input. Bash heredocs with nested quotes can break on Windows Git Bash; use the Write tool for new files.
 - better-auth 1.7.7 sign-up duplicate email throws `BASE_ERROR_CODES.USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL` (422; `node_modules/better-auth/dist/api/routes/sign-up.mjs`). better-call VALIDATION_ERROR message is `[body.<field>] <msg>` joined by `; ` for several issues.
 - Playwright MCP: run a whole checklist flow in one browser_run_code_unsafe call (fill, click, read role=status/alert textContent); `page.route("**/api/auth/**", r => r.abort())` simulates a network failure. authClient returns `{ error }` for HTTP errors; AuthForm still wraps it in try/catch for thrown fetch errors.
+- Playwright selectors: scope to `main` (`main button[type=submit]`, `main [role=alert]`); in dev the Next devtools button and the always-present `#__next-route-announcer__` (role=alert) break strict-mode `getByRole`.
 
 ## 2026-10-12 – M0-deps (passes)
 - Files: package.json (all §4 pins, packageManager bun@1.3.14, M0 scripts without db:migrate), bun.lock, .prettierrc, .prettierignore (`*.md`, `.claude/`), app/page.tsx + next.config.ts (format/class sort only).
@@ -121,4 +122,10 @@ ralph.ts gives every iteration this section, so record here what you would other
 - Added: lib/auth-client.ts, components/message-region.tsx (Message type, always-rendered role=status + role=alert), components/auth-form.tsx (both modes' copy, so M3-sign-in only adds the page), app/sign-up/page.tsx (title metadata, getCurrentUser → redirect /notes).
 - AuthForm: uncontrolled inputs; on error clears password via ref (D47), sets error message; submit clears region first (MSG-2); success keeps pending while router.push("/notes") + refresh.
 - Playwright (bun run dev): AUTH-1 copy/attrs/hint/link/title; slow sign-up ada@example.com → "Creating account…" disabled → /notes (404 until M3-notes-shell), cookie HttpOnly+Lax, DB name = email; AUTH-11; clearCookies; duplicate → AUTH-3; error persists while typing, cleared at next submit; noValidate short/long/empty pw → AUTH-4, bad email → AUTH-5, aborted request → AUTH-14; all keep email, clear password.
+- Checks: bun test 77 pass; lint 0; typecheck 0; build 0.
+
+## 2026-10-12 – M3-sign-in (passes)
+- Added: app/sign-in/page.tsx (title "Sign in – TinyNotes", getCurrentUser → redirect /notes, `<AuthForm mode="sign-in" />`); AuthForm already had sign-in copy.
+- Playwright (bun run dev): AUTH-6 heading/labels/button/"No account yet? Create one" → /sign-up, title; step 6 wrong password and nobody@example.com → "Invalid email or password.", email kept, password cleared (D47); step 7 slow ADA@example.com → "Signing in…" disabled → /notes (AUTH-7, AUTH-9, AUTH-13; Ada@Example.com sign-up was a duplicate of the existing lowercased user); /sign-in signed in → /notes (AUTH-11). `/` → /notes is still the scaffold (NAV-1, later M3 task).
+- Playwright (build + start): step 27 six wrong sign-ins → 5× AUTH-8 copy, sixth "Too many attempts. Please wait a minute and try again."
 - Checks: bun test 77 pass; lint 0; typecheck 0; build 0.
