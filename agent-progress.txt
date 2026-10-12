@@ -157,3 +157,9 @@ ralph.ts gives every iteration this section, so record here what you would other
 - Checks: bun test 81 pass; lint 0; typecheck 0; build 0.
 - Playwright (dev, DB_PATH=data/m4-test.db): New note → editor with empty title, placeholder/maxlength 200, page title "Untitled – TinyNotes"; Ctrl+B, "## ", "- ", "> " input rules work; title/content set via SQL → prefilled after reload, title rendered as text; signed out → /sign-in; bob on Ada's note, a missing uuid and /nope → 404 "Page not found" + "Go to TinyNotes" → /; no hydration warnings in the console.
 - Save/Delete, the message region and the SharePanel are left for M4-save, M4-delete and M5.
+
+## 2026-10-12 – M4-save (passes)
+- Files: lib/notes/actions.ts (saveNoteAction: getCurrentUser → UNAUTHENTICATED; validateNoteInput errors passed through (TITLE_TOO_LONG/CONTENT_TOO_LARGE/INVALID_CONTENT); updateNote false → NOT_FOUND; revalidatePath /notes + /notes/{id}; catch → console.error + INTERNAL), components/note-editor.tsx (Save button "Save"/"Saving…", MessageRegion next to it, editCount ref bumped by title onChange and useEditor onUpdate).
+- Checks: bun test 81 pass; lint 0; build 0; typecheck 0.
+- Playwright (dev, DB_PATH=data/m4-test.db, slow POSTs): §11 steps 10–13 pass — Saving… + disabled with title editable, "Saved", cleared on edit, no "Saved" when edited during pending, editor content kept after revalidation, reload shows title + bold, "   " → listed "Untitled" first, 201 chars → TITLE_TOO_LONG alert that stays while typing and is replaced by "Saved". DB rows checked by SQL.
+- Decisions: edit handler clears only a "status" message (errors stay, MSG-2); Save disabled until the editor exists (immediatelyRender: false). Client size check (D40), the UNAUTHENTICATED "Sign in" link and Delete are left for M4-save-errors / M4-delete.

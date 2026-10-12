@@ -561,7 +561,7 @@
       "bun run build",
       "Playwright MCP (bun run dev): §11 steps 10–13"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "M4-save-errors",
