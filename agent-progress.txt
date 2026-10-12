@@ -252,3 +252,26 @@ ralph.ts gives every iteration this section, so record here what you would other
 - 26: rm -rf data && bun run build (exit 0) && bun run start; Playwright MCP: step 2 slow "Creating account…" disabled → empty /notes; 8 new note empty title + "This note is private."; 10 slow "Saving…" Save+Delete disabled → "Saved", typing hides it, typing during save → no "Saved", save again → "Saved"; 16 share link in new context 200, no controls, no email. Cookie better-auth.session_token httpOnly, sameSite Lax.
 - 27: six wrong sign-ins → 401×5, sixth 429 "Too many attempts. Please wait a minute and try again."
 - Checks: bun test 81 pass; lint 0; typecheck 0; build 0. M7 Done when met (steps 1–27 across the three M7 checklist tasks).
+
+## 2026-10-12 – Vercel + Turso (D49, outside prd.json, done in an interactive session)
+
+Same change as on agent-harness-implement (f0c2bfc), ported by hand to this branch's code.
+Why: on Vercel, bun:sqlite fails at runtime ("Cannot find module 'bun:sqlite'": functions run on
+Node.js) and a file in data/ isn't kept between requests. The user chose Turso.
+
+Changes: bun:sqlite → @libsql/client 0.18.0 (+ kysely 0.29.6, same version better-auth installs).
+lib/open-database.ts opens a libSQL Client and adds rowsOf<T>(); lib/db.ts reads TURSO_DATABASE_URL
+(default file:data/app.db) and TURSO_AUTH_TOKEN. Repo functions, migrate() and the test helpers are
+async; the SQL is unchanged. New lib/libsql-dialect.ts lets better-auth share the client
+(database: { dialect, type: "sqlite", transaction: true }). checkEnv: a *.turso.io URL needs
+TURSO_AUTH_TOKEN, a file: database is rejected when VERCEL is set, and messages also point to the
+host's env vars. scripts/migrate.ts sets WAL on local files (no longer in openDatabase, so the
+open-database test checks foreign keys + busy timeout only). SPEC (D28, D29, D33, D45, new D49, §4,
+§8, §9, §10, R1, R2, R7), README, CLAUDE.md, .codex/rules/project.md and RALPH.md updated.
+
+Checks: bun test 88 pass/0 fail; typecheck and lint clean; bun run build passes (traces
+@libsql/<platform>/index.node into the server bundle). Against a scratch file database under Node
+`next start` (as on Vercel): sign-up, New note, title + content Save, enable share, the /s/ page with
+no cookies, duplicate sign-up ("An account with this email already exists."), wrong password
+("Invalid email or password."), sign-in, Delete (list empty, old share link 404) all work; server
+log clean. Not verified: a real Turso database and a real Vercel deploy (no credentials here).

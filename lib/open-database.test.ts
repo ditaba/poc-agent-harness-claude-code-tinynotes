@@ -1,36 +1,30 @@
-import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { openDatabase } from "./open-database";
+import { describe, expect, test } from "bun:test";
+import { openDatabase, rowsOf } from "./open-database";
 
-function pragma(db: ReturnType<typeof openDatabase>, name: string): unknown {
-  const row = db.query(`PRAGMA ${name}`).get() as Record<string, unknown>;
+async function pragma(
+  db: ReturnType<typeof openDatabase>,
+  name: string,
+): Promise<unknown> {
+  const [row] = rowsOf<Record<string, unknown>>(
+    await db.execute(`PRAGMA ${name}`),
+  );
   return Object.values(row)[0];
 }
 
 describe("openDatabase", () => {
-  let tempDir: string | undefined;
-
-  afterEach(() => {
-    if (tempDir) rmSync(tempDir, { recursive: true, force: true });
-    tempDir = undefined;
-  });
-
-  test(":memory: sets foreign_keys and busy_timeout, skips WAL", () => {
+  test("has foreign keys on and a 5000 ms busy timeout", async () => {
     const db = openDatabase(":memory:");
-    expect(pragma(db, "foreign_keys")).toBe(1);
-    expect(pragma(db, "busy_timeout")).toBe(5000);
-    expect(pragma(db, "journal_mode")).toBe("memory");
+    expect(await pragma(db, "foreign_keys")).toBe(1);
+    expect(await pragma(db, "busy_timeout")).toBe(5000);
     db.close();
   });
+});
 
-  test("file DB uses WAL", () => {
-    tempDir = mkdtempSync(join(tmpdir(), "tinynotes-open-"));
-    const db = openDatabase(join(tempDir, "test.db"));
-    expect(pragma(db, "journal_mode")).toBe("wal");
-    expect(pragma(db, "foreign_keys")).toBe(1);
-    expect(pragma(db, "busy_timeout")).toBe(5000);
+describe("rowsOf", () => {
+  test("returns plain objects keyed by column name", async () => {
+    const db = openDatabase(":memory:");
+    const result = await db.execute("SELECT 1 AS a, 'x' AS b");
+    expect(rowsOf(result)).toEqual([{ a: 1, b: "x" }]);
     db.close();
   });
 });

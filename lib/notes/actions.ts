@@ -20,7 +20,7 @@ import { validateNoteInput, type NoteInput } from "./validation";
 export async function createNoteAction(): Promise<void> {
   const user = await getCurrentUser();
   if (!user) redirect("/sign-in");
-  const note = createNote(db, user.id);
+  const note = await createNote(db, user.id);
   redirect(`/notes/${note.id}`);
 }
 
@@ -37,7 +37,7 @@ export async function saveNoteAction(
 
     const updatedAt = Date.now();
     // A note the user doesn't own behaves like a missing one (D24).
-    if (!updateNote(db, user.id, id, validated.value, updatedAt)) {
+    if (!(await updateNote(db, user.id, id, validated.value, updatedAt))) {
       return { ok: false, error: "NOT_FOUND" };
     }
     revalidatePath("/notes");
@@ -56,7 +56,8 @@ export async function deleteNoteAction(id: string): Promise<ActionResult> {
     const user = await getCurrentUser();
     if (!user) return { ok: false, error: "UNAUTHENTICATED" };
 
-    if (!deleteNote(db, user.id, id)) return { ok: false, error: "NOT_FOUND" };
+    if (!(await deleteNote(db, user.id, id)))
+      return { ok: false, error: "NOT_FOUND" };
     return { ok: true, data: undefined };
   } catch (error) {
     console.error(error);
@@ -72,7 +73,7 @@ export async function enableShareAction(
     const user = await getCurrentUser();
     if (!user) return { ok: false, error: "UNAUTHENTICATED" };
 
-    const token = enableShare(db, user.id, id, generateShareToken());
+    const token = await enableShare(db, user.id, id, generateShareToken());
     if (!token) return { ok: false, error: "NOT_FOUND" };
     revalidatePath("/notes");
     revalidatePath(`/notes/${id}`);
@@ -89,7 +90,7 @@ export async function disableShareAction(id: string): Promise<ActionResult> {
     const user = await getCurrentUser();
     if (!user) return { ok: false, error: "UNAUTHENTICATED" };
 
-    if (!disableShare(db, user.id, id))
+    if (!(await disableShare(db, user.id, id)))
       return { ok: false, error: "NOT_FOUND" };
     revalidatePath("/notes");
     revalidatePath(`/notes/${id}`);

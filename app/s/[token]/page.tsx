@@ -9,7 +9,9 @@ import { isShareTokenFormat } from "@/lib/share-token";
 
 // Public page: no session lookup. Malformed tokens never reach the DB (PUB-2).
 const loadSharedNote = cache(async (token: string) => {
-  const note = isShareTokenFormat(token) ? getSharedNote(db, token) : null;
+  const note = isShareTokenFormat(token)
+    ? await getSharedNote(db, token)
+    : null;
   if (!note) notFound();
   return note;
 });

@@ -22,7 +22,7 @@ Notes are stored as TipTap JSON in SQLite and rendered as HTML. The app runs loc
 - Notes: list, create, open/edit (title + rich text), explicit save, delete.
 - Sharing: create a public link, copy it, disable it. Re-enabling creates a new link.
 - Public read-only page for a shared note.
-- Raw-SQL data layer on `bun:sqlite`, with a custom migration script.
+- Raw-SQL data layer on libSQL (`@libsql/client`): a local SQLite file in development, Turso on Vercel (D49), with a custom migration script.
 - Unit tests (`bun test`) and a manual acceptance checklist.
 - Prettier + `format` script (the existing `.claude/settings.json` hook calls `bun run format`).
 
@@ -35,7 +35,7 @@ Notes are stored as TipTap JSON in SQLite and rendered as HTML. The app runs loc
 - Collaboration, real-time editing, sharing with specific users, letting others edit.
 - Author info on shared pages.
 - Landing page, dark mode **[ASSUMPTION]**, i18n (English only) **[ASSUMPTION]**.
-- Deployment config, Docker, CI, automated E2E suite.
+- Deployment config (beyond the Vercel + Turso env setup in D49), Docker, CI, automated E2E suite.
 - ORMs and query builders in app code (better-auth uses Kysely internally; that is fine).
 - `proxy.ts` / middleware **[ASSUMPTION]**.
 
@@ -72,12 +72,12 @@ Notes are stored as TipTap JSON in SQLite and rendered as HTML. The app runs loc
 | D25 | Every protected page calls `requireUser()`. Every Server Action calls `getCurrentUser()`. No layout-only checks, no `proxy.ts`. | [ASSUMPTION] |
 | D26 | On save, content is parsed against the editor's ProseMirror schema and normalized. Unknown nodes, marks or attributes are rejected or dropped before storage. | [ASSUMPTION] |
 | D27 | `note.id` = `crypto.randomUUID()`. App timestamps are INTEGER Unix milliseconds. | [ASSUMPTION] |
-| D28 | Next.js runs on the Bun runtime (`bun --bun next …`), which `bun:sqlite` requires. | [ASSUMPTION] |
-| D29 | One shared `Database` instance (`lib/db.ts`) is used by both the app and better-auth. | [ASSUMPTION] |
+| D28 | Locally, Next.js runs on the Bun runtime (`bun --bun next …`). It was required by `bun:sqlite`; since D49 nothing depends on it, and Vercel runs the functions on Node.js. | [ASSUMPTION] |
+| D29 | One shared libSQL `Client` (`lib/db.ts`) is used by both the app and better-auth (through `LibsqlDialect`, D49). | [ASSUMPTION] |
 | D30 | After sign-in or sign-up the user always lands on `/notes`. There is no `?next=` return URL. | [ASSUMPTION] |
 | D31 | Concurrent edits of the same note (two tabs): last save wins. | [ASSUMPTION] |
 | D32 | Enabling or disabling sharing does not change `updated_at`. | [ASSUMPTION] |
-| D33 | Dates are formatted on the server with `Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" })` in the server's local time zone, e.g. `Oct 10, 2026, 3:45 PM`. This is fine because deployment is local only. | [ASSUMPTION] |
+| D33 | Dates are formatted on the server with `Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" })` in the server's local time zone, e.g. `Oct 10, 2026, 3:45 PM`. Locally that is the user's time zone. On Vercel the server runs in UTC, so dates show in UTC there (accepted for the demo, D49). | [ASSUMPTION] |
 | D34 | Rich-text styling is a small `.note-content` CSS block in `app/globals.css`, shared by the editor and the shared page. No `@tailwindcss/typography`. | [ASSUMPTION] |
 | D35 | Toolbar buttons show short text labels (no icon library), each with a full `aria-label`. | [ASSUMPTION] |
 | D36 | `dev`, `build` and `start` run `db:migrate` first. It checks the environment (`checkEnv`), creates `data/` and applies migrations, so the schema is always current and a fresh clone builds. A missing or invalid env stops the command with a message naming the variable. | [ASSUMPTION] |
@@ -89,10 +89,11 @@ Notes are stored as TipTap JSON in SQLite and rendered as HTML. The app runs loc
 | D42 | The Sharing section's state comes from the page load, then only from its own action results. Disabling a note that is already private succeeds. | [ASSUMPTION] |
 | D43 | Toolbar keyboard follows the WAI-ARIA toolbar pattern: one Tab stop, arrow keys move between buttons. Unavailable buttons use `aria-disabled` and stay focusable. | [ASSUMPTION] |
 | D44 | Auth rate limits are set explicitly in `lib/auth.ts`: 5 requests per 60 s each for `/sign-in/email` and `/sign-up/email`. The limiter runs in production mode only (better-auth default). | [ASSUMPTION] |
-| D45 | `openDatabase()` lives in `lib/open-database.ts`, which has no side effects. `lib/db.ts` imports it and exports the `db` singleton. Tests, `lib/testing/db.ts` and `scripts/migrate.ts` import only `lib/open-database.ts`, so they never open `DB_PATH` by accident. | Confirmed |
+| D45 | `openDatabase()` lives in `lib/open-database.ts`, which has no side effects. `lib/db.ts` imports it and exports the `db` singleton. Tests, `lib/testing/db.ts` and `scripts/migrate.ts` import only `lib/open-database.ts`, so they never open `TURSO_DATABASE_URL` by accident. | Confirmed |
 | D46 | `.prettierignore` lists `*.md` and `.claude/`. Gitignored paths are skipped by Prettier anyway. Code, CSS and JSON (including `prd.json`) are formatted. | Confirmed |
 | D47 | Any auth form error clears the password field and keeps the email. | Confirmed |
 | D48 | "Sign out" is disabled while its request is pending. If the request fails, the button is re-enabled and nothing else changes (no message). | Confirmed |
+| D49 | The app deploys to Vercel with a Turso database, so `bun:sqlite` is replaced by `@libsql/client`. `TURSO_DATABASE_URL` picks the database: unset (or `file:…`) is a local SQLite file, `libsql://…` is Turso, which also needs `TURSO_AUTH_TOKEN`. Repo functions and `migrate()` are async, the SQL is unchanged. better-auth shares the client through `lib/libsql-dialect.ts`, a small Kysely dialect (`@libsql/kysely-libsql` would pull in a second, older `@libsql/client`). On Vercel, `build` runs `db:migrate` against Turso before each deploy, and `checkEnv` rejects a `file:` database there, because functions have no lasting disk. | Confirmed |
 
 ---
 
@@ -103,7 +104,8 @@ All versions are pinned exactly in `package.json` (no `^` or `~`).
 | Package | Version | Role |
 | ------- | ------- | ---- |
 | Bun (runtime + package manager + test runner) | 1.3.14 | `"packageManager": "bun@1.3.14"` |
-| `bun:sqlite` | built into Bun | Database driver |
+| `@libsql/client` | 0.18.0 | Database driver: local SQLite file or Turso (D49) |
+| `kysely` | 0.29.6 | Only for `lib/libsql-dialect.ts`, the dialect better-auth uses (D49); same version better-auth installs |
 | `next` | 16.4.0 | App Router, Server Actions |
 | `react`, `react-dom` | 19.3.0 | UI |
 | `better-auth` | 1.7.7 | Email/password auth, sessions |
@@ -144,12 +146,15 @@ No other runtime dependencies. Adding one requires updating this spec.
 ```
 BETTER_AUTH_SECRET=<random string, at least 32 characters>
 BETTER_AUTH_URL=http://localhost:3000
-DB_PATH=data/app.db
+TURSO_DATABASE_URL=file:data/app.db   # optional locally; libsql://<db>-<org>.turso.io on Vercel
+TURSO_AUTH_TOKEN=                     # required for a *.turso.io URL
 ```
 
-`.gitignore` must contain `data/` and must keep ignoring `.env*` while un-ignoring `!.env.example`.
+`.gitignore` must contain `data/` and must keep ignoring `.env*` while un-ignoring `!.env.example`. Only `bun.lock` is committed (no `package-lock.json`), so Vercel installs with Bun.
 
 Fresh clone: `bun install`, copy `.env.example` to `.env` and set a real secret, then `bun run build && bun run start` (or `bun run dev`). Without a valid `.env`, every one of those stops at `db:migrate` (D36).
+
+Vercel (D49): create a Turso database (`turso db create tinynotes`, then `turso db show --url tinynotes` and `turso db tokens create tinynotes`) and set `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (the production origin, e.g. `https://tinynotes.vercel.app`), `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` in the project's environment variables. The default build command (`bun run build`) migrates Turso, then builds. Preview deployments use the same database unless the Preview environment gets its own `TURSO_*` values, and sign-in only works on the origin in `BETTER_AUTH_URL` (§10).
 
 ---
 
@@ -387,9 +392,9 @@ CREATE INDEX note_user_updated_idx ON note (user_id, updated_at DESC);
 
 `UNIQUE` on `share_token` allows many `NULL`s in SQLite, so only active tokens must be unique.
 
-### Connection settings (`lib/db.ts`, every connection)
+### Connection settings (`lib/open-database.ts`)
 
-`PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;` (WAL is skipped for `:memory:`).
+libSQL enables `foreign_keys` on every connection by default. `createClient({ timeout: 5000 })` sets the busy timeout for local `file:` databases. `scripts/migrate.ts` sets `PRAGMA journal_mode = WAL` once on a local `file:` database (it is stored in the file). None of these apply to Turso, which manages its own storage (D49).
 
 ---
 
@@ -422,10 +427,11 @@ components/
   share-panel.tsx               "use client"
   note-content.tsx              server: renders sanitized HTML
 lib/
-  open-database.ts              openDatabase(), no side effects (D45)
-  db.ts                         Database singleton
-  env.ts                        checkEnv (D36)
+  open-database.ts              openDatabase(), rowsOf(), no side effects (D45)
+  db.ts                         libSQL Client singleton
+  env.ts                        checkEnv (D36), databaseUrl (D49)
   migrate.ts                    migration runner (pure, testable)
+  libsql-dialect.ts             LibsqlDialect: Kysely dialect over the shared Client, for better-auth (D49)
   auth.ts                       betterAuth instance
   auth-client.ts                createAuthClient
   auth-errors.ts                auth error → message
@@ -451,28 +457,36 @@ Unit tests are colocated as `*.test.ts` next to the module **[ASSUMPTION]**.
 
 ```ts
 // lib/open-database.ts — no side effects on import (D45)
-import { Database } from "bun:sqlite";
-export function openDatabase(path: string): Database; // applies PRAGMAs (§8)
+import { createClient, type Client, type ResultSet } from "@libsql/client";
+export function openDatabase(url: string, authToken?: string): Client; // createClient({ url, authToken, timeout: 5000 }) (§8)
+export function rowsOf<T>(result: ResultSet): T[]; // libSQL rows → plain { column: value } objects
 
-// lib/db.ts — importing this opens DB_PATH; only app code (pages, actions, lib/auth.ts) imports it
-export const db: Database; // openDatabase(process.env.DB_PATH ?? "data/app.db"),
-                           // cached on globalThis in dev to survive HMR
+// lib/db.ts — importing this opens TURSO_DATABASE_URL; only app code (pages, actions, lib/auth.ts) imports it
+export const db: Client; // openDatabase(databaseUrl(process.env), process.env.TURSO_AUTH_TOKEN),
+                         // cached on globalThis in dev to survive HMR
 
 // lib/env.ts
+export function databaseUrl(env: Record<string, string | undefined>): string; // TURSO_DATABASE_URL || "file:data/app.db"
 export function checkEnv(env: Record<string, string | undefined>): string[]; // problems; [] when OK
-// BETTER_AUTH_SECRET missing or < 32 chars, BETTER_AUTH_URL missing → one message each,
-// naming the variable and pointing to .env.example.
+// BETTER_AUTH_SECRET missing or < 32 chars, BETTER_AUTH_URL missing, a *.turso.io URL without
+// TURSO_AUTH_TOKEN, a file: database while VERCEL is set → one message each, naming the variable
+// and pointing to .env.example.
 
 // lib/migrate.ts
-export function migrate(db: Database, dir: string): string[]; // returns names newly applied
+export async function migrate(db: Client, dir: string): Promise<string[]>; // returns names newly applied
+// Each file: db.transaction("write") → executeMultiple(file) + INSERT INTO _migrations → commit.
 
 // scripts/migrate.ts — checkEnv(process.env) first: on problems, prints them and exits 1 (D36).
-// Then ensures dirname(DB_PATH) exists, opens DB with openDatabase() from lib/open-database.ts (D45), migrate(db, "db/migrations"),
-// prints applied names, exits 1 on failure.
+// Then, for a file: URL, ensures its directory exists and sets WAL. Opens the DB with openDatabase() from
+// lib/open-database.ts (D45), migrate(db, "db/migrations"), prints applied names, exits 1 on failure.
+
+// lib/libsql-dialect.ts
+export class LibsqlDialect implements Dialect { constructor(client: Client) } // SqliteAdapter/QueryCompiler/Introspector;
+// a query outside a transaction runs on the client, a Kysely transaction gets client.transaction("write")
 
 // lib/auth.ts
 export const auth = betterAuth({
-  database: db,
+  database: { dialect: new LibsqlDialect(db), type: "sqlite", transaction: true },
   emailAndPassword: { enabled: true, autoSignIn: true }, // default 8–128 password length
   rateLimit: {
     // D44; the limiter itself stays production-only (better-auth default)
@@ -548,17 +562,18 @@ export function renderNoteHtml(content: JSONContent): string;
 export type Note = { id: string; title: string; content: JSONContent; shareToken: string | null; createdAt: number; updatedAt: number };
 export type NoteSummary = { id: string; title: string; updatedAt: number; isShared: boolean };
 export type SharedNote = { title: string; content: JSONContent; updatedAt: number };
-export function listNotes(db: Database, userId: string): NoteSummary[];           // ORDER BY updated_at DESC
-export function getNote(db: Database, userId: string, id: string): Note | null;
-export function createNote(db: Database, userId: string, now?: number): Note;     // title "", EMPTY_DOC
-export function updateNote(db: Database, userId: string, id: string, input: ValidatedNoteInput, now?: number): boolean;
-export function deleteNote(db: Database, userId: string, id: string): boolean;
-export function enableShare(db: Database, userId: string, id: string, token: string): string | null;
+// All async (D49); booleans come from rowsAffected.
+export function listNotes(db: Client, userId: string): Promise<NoteSummary[]>;           // ORDER BY updated_at DESC
+export function getNote(db: Client, userId: string, id: string): Promise<Note | null>;
+export function createNote(db: Client, userId: string, now?: number): Promise<Note>;     // title "", EMPTY_DOC
+export function updateNote(db: Client, userId: string, id: string, input: ValidatedNoteInput, now?: number): Promise<boolean>;
+export function deleteNote(db: Client, userId: string, id: string): Promise<boolean>;
+export function enableShare(db: Client, userId: string, id: string, token: string): Promise<string | null>;
 // UPDATE note SET share_token = COALESCE(share_token, ?) WHERE id = ? AND user_id = ? RETURNING share_token
-export function disableShare(db: Database, userId: string, id: string): boolean;
+export function disableShare(db: Client, userId: string, id: string): Promise<boolean>;
 // UPDATE note SET share_token = NULL WHERE id = ? AND user_id = ?
 // → true when the note exists and is owned, whether or not it was shared (D42); false otherwise.
-export function getSharedNote(db: Database, token: string): SharedNote | null;
+export function getSharedNote(db: Client, token: string): Promise<SharedNote | null>;
 
 // lib/notes/actions.ts — "use server".
 // saveNoteAction, deleteNoteAction, enableShareAction, disableShareAction: getCurrentUser() → UNAUTHENTICATED;
@@ -614,12 +629,12 @@ export function NoteContent({ content }: { content: JSONContent }): JSX.Element;
 - **Passwords and sessions**: better-auth handles hashing and sessions. Session cookies are `HttpOnly` and `SameSite=Lax` (better-auth defaults, checked in the manual checklist). `Secure` isn't required, because the app is only served over plain HTTP on `localhost` (D21). If it is ever served over HTTPS, set better-auth's `advanced.useSecureCookies: true`. `BETTER_AUTH_SECRET` is at least 32 chars, lives only in `.env`, and is never committed. The value in `.env.example` is a placeholder, not a real secret.
 - **Authentication boundary**: Server Actions are public HTTP endpoints. Every action re-checks the session itself (D25). Pages check with `requireUser()`; layouts are not trusted for auth.
 - **Authorization**: every owner query is scoped `WHERE id = ? AND user_id = ?`. A note that isn't owned looks exactly like a missing one (404 / `NOT_FOUND`), so note existence never leaks.
-- **SQL injection**: only parameterized statements (`db.query(sql).get/all/run(...params)`). Values are never interpolated into SQL strings.
+- **SQL injection**: only parameterized statements (`db.execute({ sql, args })`). Values are never interpolated into SQL strings.
 - **XSS**: content is validated against the editor schema and normalized before storage (D26). It is rendered only via TipTap's static renderer, which emits schema tags only (PUB-4). There are no links in the schema, so no `href`/`javascript:` surface. `NoteContent` is the only `dangerouslySetInnerHTML`. Titles are rendered as React text, never as HTML.
 - **Share tokens**: 192 bits from a CSPRNG. `UNIQUE` in the DB. The format is checked before lookup. Revocation is immediate, and re-enabling issues a new token. Shared pages expose no owner data, note id or user id, and set `noindex, nofollow`.
 - **CSRF**: the app relies on framework defaults and doesn't test them itself. better-auth checks `Origin` against `BETTER_AUTH_URL` for its endpoints, and Next.js Server Actions compare `Origin` with `Host`. The checkable rule is that nothing weakens them: no `trustedOrigins` option in `lib/auth.ts` and no `serverActions.allowedOrigins` in `next.config.ts`.
 - **Input limits**: title ≤ 200; content ≤ 100 KB of normalized JSON (D40), checked in the browser and on the server. DB `CHECK`s enforce both limits. The Next.js default Server Action body limit (1 MB) stays unchanged. Requests over it fail as in D39.
-- **Rate limiting**: better-auth's built-in limiter (production mode only, in-memory) covers auth endpoints. Explicit rules: 5 requests per 60 s each for sign-in and sign-up (D44), checked in the manual checklist. Note actions are not rate limited **[ASSUMPTION]**.
+- **Rate limiting**: better-auth's built-in limiter (production mode only, in-memory) covers auth endpoints. Explicit rules: 5 requests per 60 s each for sign-in and sign-up (D44), checked in the manual checklist. Note actions are not rate limited **[ASSUMPTION]**. On Vercel the in-memory counters live in each function instance, so the limit is per instance and resets on a cold start (accepted for the demo; `rateLimit.storage: "database"` plus a `rateLimit` table migration would make it global).
 - **Email enumeration**: sign-in gives the same message for unknown email and wrong password. Sign-up necessarily reveals "already exists"; that is accepted for a demo with no email verification.
 - **Headers** **[ASSUMPTION]**: `next.config.ts` `headers()` adds `X-Content-Type-Options: nosniff` and `X-Frame-Options: DENY` to all routes, and `Referrer-Policy: no-referrer` to `/s/:path*`.
 - **Errors**: clients receive only `ErrorCode`s. Stack traces and SQL errors are logged on the server only.
@@ -688,13 +703,13 @@ Steps marked **(slow)** run with every POST request delayed by 1.5 s, so pending
 
 | ID | Risk | Mitigation |
 | -- | ---- | ---------- |
-| R1 | **`bun:sqlite` inside Next.js** (highest risk): Turbopack may fail to resolve `bun:sqlite`, or code may run on Node instead of Bun. Only community docs cover this; it is not verified for Next 16.4. | M0 spike: a throwaway page runs `select sqlite_version()` under `bun --bun next dev` **and** `build` + `start`. If it fails, try in order: `serverExternalPackages: ["bun:sqlite"]` in `next.config.ts`, then `next dev --webpack` / `next build --webpack`. If all fail, stop and ask (don't switch DB drivers without approval). **Verified (M0)** with Bun 1.3.14 and an unchanged `next.config.ts` (no `serverExternalPackages`, no `--webpack`): `/spike` shows SQLite 3.53.0 under `bun --bun next dev` and under `bun --bun next build` + `next start`. Bun 1.3.12 failed every production build (`TypeError: Expected CommonJS module to have a function wrapper` when loading react-dom 19.3 production server builds, a Bun bug fixed in 1.3.14), so the runtime pin in §4 is 1.3.14 and must stay ≥ 1.3.14. |
-| R2 | better-auth's expected schema differs from the hand-written `0001` SQL. | In M0, generate the schema with the better-auth CLI for the pinned version and diff it. The spike signs up and signs in one user against the migrated DB. **Verified (M0)**: `bunx --bun auth@1.7.7 generate` (the 1.7.7 CLI package is `auth`; `--bun` is needed so the config can import `bun:sqlite`) on a `betterAuth({ database: new Database(…) })` config produces exactly the §8 `0001` SQL (same tables, columns, types, constraints and indexes; only case and whitespace differ), so §8 is unchanged. better-auth detects a `bun:sqlite` `Database` itself (Kysely `BunSqliteDialect`), so no adapter option is needed. On that schema, `POST /api/auth/sign-up/email` and `/sign-in/email` return 200 with `Set-Cookie: better-auth.session_token=…; HttpOnly; SameSite=Lax` under `next dev` and `next start`. A foreign `Origin` gets 403. |
+| R1 | **Superseded by D49** (the app no longer uses `bun:sqlite`; `@libsql/client` is in Next's built-in `serverExternalPackages` and was verified under `bun --bun next start` and Node `next start`). Original: **`bun:sqlite` inside Next.js** (highest risk): Turbopack may fail to resolve `bun:sqlite`, or code may run on Node instead of Bun. Only community docs cover this; it is not verified for Next 16.4. | M0 spike: a throwaway page runs `select sqlite_version()` under `bun --bun next dev` **and** `build` + `start`. If it fails, try in order: `serverExternalPackages: ["bun:sqlite"]` in `next.config.ts`, then `next dev --webpack` / `next build --webpack`. If all fail, stop and ask (don't switch DB drivers without approval). **Verified (M0)** with Bun 1.3.14 and an unchanged `next.config.ts` (no `serverExternalPackages`, no `--webpack`): `/spike` shows SQLite 3.53.0 under `bun --bun next dev` and under `bun --bun next build` + `next start`. Bun 1.3.12 failed every production build (`TypeError: Expected CommonJS module to have a function wrapper` when loading react-dom 19.3 production server builds, a Bun bug fixed in 1.3.14), so the runtime pin in §4 is 1.3.14 and must stay ≥ 1.3.14. |
+| R2 | better-auth's expected schema differs from the hand-written `0001` SQL. | Since D49 better-auth reaches the same schema through `LibsqlDialect` (Kysely's SQLite adapter, same SQL as before); sign-up, duplicate sign-up (422), wrong password (401) and sign-in were re-verified on it. In M0, generate the schema with the better-auth CLI for the pinned version and diff it. The spike signs up and signs in one user against the migrated DB. **Verified (M0)**: `bunx --bun auth@1.7.7 generate` (the 1.7.7 CLI package is `auth`; `--bun` is needed so the config can import `bun:sqlite`) on a `betterAuth({ database: new Database(…) })` config produces exactly the §8 `0001` SQL (same tables, columns, types, constraints and indexes; only case and whitespace differ), so §8 is unchanged. better-auth detects a `bun:sqlite` `Database` itself (Kysely `BunSqliteDialect`), so no adapter option is needed. On that schema, `POST /api/auth/sign-up/email` and `/sign-in/email` return 200 with `Set-Cookie: better-auth.session_token=…; HttpOnly; SameSite=Lax` under `next dev` and `next start`. A foreign `Origin` gets 403. |
 | R3 | TipTap hydration mismatch in Next SSR. | `immediatelyRender: false`; the editor lives only in a client component. |
 | R4 | The static renderer doesn't escape some attribute or text. | Unit tests in `render.test.ts` (escaping cases). Schema normalization drops unknown attrs. If escaping fails, stop and ask before adding `@tiptap/html`. |
 | R5 | Lost edits (no autosave, no unsaved-changes warning, session expiry). | Accepted per D2. The session-expiry link opens in a new tab so edits survive (§7). |
 | R6 | Next 16.4.0 is 4 days old at spec time. | If a regression blocks work, pin `16.3.8` + `eslint-config-next 16.3.8` and record it in §3. |
-| R7 | Multiple DB connections in dev (HMR) or `SQLITE_BUSY`. | Cache `db` on `globalThis` in dev. WAL + `busy_timeout = 5000`. |
+| R7 | Multiple DB connections in dev (HMR) or `SQLITE_BUSY`. | Cache `db` on `globalThis` in dev. Local file: WAL + busy timeout 5000 ms (`createClient({ timeout })`, §8). |
 | R8 | Two tabs editing the same note overwrite each other. | Accepted: last save wins (D31). |
 | R9 | `.gitignore` ignores `.env*`, which also matches `.env.example`. | Add `!.env.example` and `data/` in M0. |
 | R10 | better-auth's rate limiter keys on the client IP. With no proxy in front of `next start`, it may not find one and never trigger, so D44 and checklist step 27 fail. | M0 spike: under `next start`, six quick wrong sign-ins return 429. If not, adjust better-auth's IP-address settings (`advanced.ipAddress`). If that doesn't work, stop and ask. **Verified (M0)** with only the D44 `customRules` and no `advanced.ipAddress` option: under `bun --bun next start`, six quick wrong sign-ins return 401 ×5, then 429 (`{"message":"Too many requests. Please try again later."}`, `x-retry-after` header). Next's server sets `x-forwarded-for` from the socket address when it is missing, and better-auth reads that header by default, so `lib/auth.ts` needs no extra option. |

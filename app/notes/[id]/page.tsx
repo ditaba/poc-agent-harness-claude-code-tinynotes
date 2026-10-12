@@ -13,7 +13,7 @@ import { buildShareUrl } from "@/lib/share-token";
 // Shared by generateMetadata and the page, so the note is read once per request.
 const loadOwnedNote = cache(async (id: string) => {
   const user = await requireUser();
-  const note = getNote(db, user.id, id);
+  const note = await getNote(db, user.id, id);
   // Missing and not-owned notes look the same (D24, NOTE-15).
   if (!note) notFound();
   return { user, note };
