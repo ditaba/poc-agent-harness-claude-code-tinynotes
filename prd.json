@@ -59,7 +59,7 @@
       "bun run lint",
       "bun run typecheck"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "M0-spike-auth",

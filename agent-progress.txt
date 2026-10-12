@@ -20,3 +20,13 @@ ralph.ts gives every iteration this section, so record here what you would other
 - Local .env already existed with a 43-char secret and the §4 URL/DB_PATH; kept it, not committed.
 - Checks: `git check-ignore -v .env data/app.db` lists both (exit 0); `git check-ignore .env.example` exit 1 no output; `git ls-files .env data` empty; `git ls-files .env.example` lists it after commit.
 - Committed via a temporary index from HEAD so the human's staged .gitignore (.playwright-mcp/.ralph/data) and prd.json changes stay staged and out of this commit.
+
+## 2026-10-12 – M0-spike-sqlite (passes)
+- Files: app/spike/page.tsx (throwaway, `force-dynamic`, `bun:sqlite` `:memory:` → `select sqlite_version()`), SPEC.md §12 R1 (verified note), prd.json (passes).
+- `bun --bun next dev`: GET /spike 200, shows SQLite 3.53.0 (Turbopack, no config change).
+- `bun --bun next build` exit 0 (/spike is ƒ dynamic); `bun --bun next start`: /spike shows SQLite 3.53.0.
+- No R1 fallback needed: next.config.ts unchanged (no serverExternalPackages, no --webpack). Bun must stay ≥ 1.3.14.
+- Checks: prettier --check on page 0; lint 0; typecheck 0; bun test exit 1 (no test files yet, expected in M0).
+- Playwright MCP not connected this session; verified via curl (task verify steps are curl-based).
+- Spike page stays for M0-spike-auth; delete before merge (§14 M0).
+- Committed via a temporary index from HEAD; human staged SPEC.md/prd.json changes stay staged and out of this commit.
