@@ -16,7 +16,7 @@ type Props = { params: Promise<{ id: string }> };
 // /sign-in (AUTH-12, D25). A missing note and another user's note both give the generic 404 (NOTE-15, D24).
 const loadNote = cache(async (id: string) => {
   const user = await requireUser();
-  const note = getNote(db, user.id, id);
+  const note = await getNote(db, user.id, id);
   if (!note) {
     notFound();
   }

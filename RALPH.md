@@ -122,7 +122,7 @@ completion, a blocked task, a CLI error, or interruption with Ctrl+C.
 
 ### Blocked tasks
 
-Some tasks have "stop and ask" conditions (for example, `bun:sqlite` failing in Next.js under every fallback). Ralph runs non-interactively, so it can't ask. Instead it sets a `"blocked"` field on the task with the reason, keeps `passes: false`, logs it in `agent-progress.txt`, commits, and stops the loop.
+Some tasks have "stop and ask" conditions (for example, the database driver failing in Next.js under every fallback). Ralph runs non-interactively, so it can't ask. Instead it sets a `"blocked"` field on the task with the reason, keeps `passes: false`, logs it in `agent-progress.txt`, commits, and stops the loop.
 
 To continue:
 

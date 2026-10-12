@@ -1,5 +1,6 @@
-import type { Database } from "bun:sqlite";
+import type { Client } from "@libsql/client";
 import { beforeEach, describe, expect, test } from "bun:test";
+import { rowsOf } from "../open-database";
 import { generateShareToken } from "../share-token";
 import { createTestDb, insertTestUser } from "../testing/db";
 import { EMPTY_DOC } from "./editor-extensions";
@@ -36,32 +37,39 @@ type RawNoteRow = {
   updated_at: number;
 };
 
-function rawRow(db: Database, id: string): RawNoteRow | null {
-  return db
-    .query<RawNoteRow, [string]>("SELECT * FROM note WHERE id = ?")
-    .get(id);
+async function rawRow(db: Client, id: string): Promise<RawNoteRow | null> {
+  const result = await db.execute({
+    sql: "SELECT * FROM note WHERE id = ?",
+    args: [id],
+  });
+  return rowsOf<RawNoteRow>(result)[0] ?? null;
 }
 
-function insertRaw(db: Database, userId: string, content: string): void {
-  db.query(
-    `INSERT INTO note (id, user_id, content, created_at, updated_at)
-     VALUES (?, ?, ?, 0, 0)`,
-  ).run(crypto.randomUUID(), userId, content);
+async function insertRaw(
+  db: Client,
+  userId: string,
+  content: string,
+): Promise<void> {
+  await db.execute({
+    sql: `INSERT INTO note (id, user_id, content, created_at, updated_at)
+          VALUES (?, ?, ?, 0, 0)`,
+    args: [crypto.randomUUID(), userId, content],
+  });
 }
 
-let db: Database;
+let db: Client;
 let alice: string;
 let bob: string;
 
-beforeEach(() => {
-  db = createTestDb();
-  alice = insertTestUser(db);
-  bob = insertTestUser(db);
+beforeEach(async () => {
+  db = await createTestDb();
+  alice = await insertTestUser(db);
+  bob = await insertTestUser(db);
 });
 
 describe("createNote", () => {
-  test('defaults: title "", EMPTY_DOC, a UUID id, created_at = updated_at = now (D27)', () => {
-    const note = createNote(db, alice, 1_000);
+  test('defaults: title "", EMPTY_DOC, a UUID id, created_at = updated_at = now (D27)', async () => {
+    const note = await createNote(db, alice, 1_000);
 
     expect(note).toEqual({
       id: expect.stringMatching(UUID_PATTERN),
@@ -71,8 +79,8 @@ describe("createNote", () => {
       createdAt: 1_000,
       updatedAt: 1_000,
     });
-    expect(getNote(db, alice, note.id)).toEqual(note);
-    expect(rawRow(db, note.id)).toEqual({
+    expect(await getNote(db, alice, note.id)).toEqual(note);
+    expect(await rawRow(db, note.id)).toEqual({
       id: note.id,
       user_id: alice,
       title: "",
@@ -83,9 +91,9 @@ describe("createNote", () => {
     });
   });
 
-  test("now defaults to the current time", () => {
+  test("now defaults to the current time", async () => {
     const before = Date.now();
-    const note = createNote(db, alice);
+    const note = await createNote(db, alice);
     const after = Date.now();
 
     expect(note.createdAt).toBeGreaterThanOrEqual(before);
@@ -93,12 +101,14 @@ describe("createNote", () => {
     expect(note.updatedAt).toBe(note.createdAt);
   });
 
-  test("each note gets a new id", () => {
-    expect(createNote(db, alice).id).not.toBe(createNote(db, alice).id);
+  test("each note gets a new id", async () => {
+    expect((await createNote(db, alice)).id).not.toBe(
+      (await createNote(db, alice)).id,
+    );
   });
 
-  test("the returned content is not EMPTY_DOC itself", () => {
-    const note = createNote(db, alice);
+  test("the returned content is not EMPTY_DOC itself", async () => {
+    const note = await createNote(db, alice);
     note.content.content?.push({ type: "paragraph" });
 
     expect(EMPTY_DOC).toEqual({
@@ -109,39 +119,41 @@ describe("createNote", () => {
 });
 
 describe("listNotes", () => {
-  test("orders by updated_at desc", () => {
-    const first = createNote(db, alice, 1_000);
-    const second = createNote(db, alice, 2_000);
-    const third = createNote(db, alice, 3_000);
-    updateNote(db, alice, first.id, groceries, 4_000);
+  test("orders by updated_at desc", async () => {
+    const first = await createNote(db, alice, 1_000);
+    const second = await createNote(db, alice, 2_000);
+    const third = await createNote(db, alice, 3_000);
+    await updateNote(db, alice, first.id, groceries, 4_000);
 
-    expect(listNotes(db, alice).map((note) => note.id)).toEqual([
+    expect((await listNotes(db, alice)).map((note) => note.id)).toEqual([
       first.id,
       third.id,
       second.id,
     ]);
   });
 
-  test("returns only the given user's notes (NOTE-3)", () => {
-    const own = createNote(db, alice, 1_000);
-    createNote(db, bob, 2_000);
+  test("returns only the given user's notes (NOTE-3)", async () => {
+    const own = await createNote(db, alice, 1_000);
+    await createNote(db, bob, 2_000);
 
-    expect(listNotes(db, alice).map((note) => note.id)).toEqual([own.id]);
+    expect((await listNotes(db, alice)).map((note) => note.id)).toEqual([
+      own.id,
+    ]);
   });
 
-  test("a user with no notes gets []", () => {
-    createNote(db, bob);
+  test("a user with no notes gets []", async () => {
+    await createNote(db, bob);
 
-    expect(listNotes(db, alice)).toEqual([]);
+    expect(await listNotes(db, alice)).toEqual([]);
   });
 
-  test("returns the summary fields, with isShared from share_token", () => {
-    const shared = createNote(db, alice, 1_000);
-    const private_ = createNote(db, alice, 2_000);
-    updateNote(db, alice, shared.id, groceries, 3_000);
-    enableShare(db, alice, shared.id, generateShareToken());
+  test("returns the summary fields, with isShared from share_token", async () => {
+    const shared = await createNote(db, alice, 1_000);
+    const private_ = await createNote(db, alice, 2_000);
+    await updateNote(db, alice, shared.id, groceries, 3_000);
+    await enableShare(db, alice, shared.id, generateShareToken());
 
-    expect(listNotes(db, alice)).toEqual([
+    expect(await listNotes(db, alice)).toEqual([
       { id: shared.id, title: "Groceries", updatedAt: 3_000, isShared: true },
       { id: private_.id, title: "", updatedAt: 2_000, isShared: false },
     ]);
@@ -149,11 +161,11 @@ describe("listNotes", () => {
 });
 
 describe("getNote", () => {
-  test("returns the owner's note with parsed content", () => {
-    const note = createNote(db, alice, 1_000);
-    updateNote(db, alice, note.id, groceries, 2_000);
+  test("returns the owner's note with parsed content", async () => {
+    const note = await createNote(db, alice, 1_000);
+    await updateNote(db, alice, note.id, groceries, 2_000);
 
-    expect(getNote(db, alice, note.id)).toEqual({
+    expect(await getNote(db, alice, note.id)).toEqual({
       id: note.id,
       title: "Groceries",
       content: JSON.parse(groceries.content),
@@ -163,23 +175,23 @@ describe("getNote", () => {
     });
   });
 
-  test("another user's note → null (D24)", () => {
-    const note = createNote(db, alice);
+  test("another user's note → null (D24)", async () => {
+    const note = await createNote(db, alice);
 
-    expect(getNote(db, bob, note.id)).toBeNull();
+    expect(await getNote(db, bob, note.id)).toBeNull();
   });
 
-  test("a missing id → null", () => {
-    expect(getNote(db, alice, crypto.randomUUID())).toBeNull();
+  test("a missing id → null", async () => {
+    expect(await getNote(db, alice, crypto.randomUUID())).toBeNull();
   });
 });
 
 describe("updateNote", () => {
-  test("stores title and content and sets updated_at, keeping created_at", () => {
-    const note = createNote(db, alice, 1_000);
+  test("stores title and content and sets updated_at, keeping created_at", async () => {
+    const note = await createNote(db, alice, 1_000);
 
-    expect(updateNote(db, alice, note.id, groceries, 2_000)).toBe(true);
-    expect(rawRow(db, note.id)).toMatchObject({
+    expect(await updateNote(db, alice, note.id, groceries, 2_000)).toBe(true);
+    expect(await rawRow(db, note.id)).toMatchObject({
       title: "Groceries",
       content: groceries.content,
       created_at: 1_000,
@@ -187,168 +199,196 @@ describe("updateNote", () => {
     });
   });
 
-  test("now defaults to the current time", () => {
-    const note = createNote(db, alice, 1_000);
+  test("now defaults to the current time", async () => {
+    const note = await createNote(db, alice, 1_000);
     const before = Date.now();
-    updateNote(db, alice, note.id, groceries);
+    await updateNote(db, alice, note.id, groceries);
 
-    expect(rawRow(db, note.id)?.updated_at).toBeGreaterThanOrEqual(before);
+    expect((await rawRow(db, note.id))?.updated_at).toBeGreaterThanOrEqual(
+      before,
+    );
   });
 
-  test("keeps share_token (NOTE-16)", () => {
-    const note = createNote(db, alice);
-    const token = enableShare(db, alice, note.id, generateShareToken());
-    updateNote(db, alice, note.id, groceries);
+  test("keeps share_token (NOTE-16)", async () => {
+    const note = await createNote(db, alice);
+    const token = await enableShare(db, alice, note.id, generateShareToken());
+    await updateNote(db, alice, note.id, groceries);
 
-    expect(rawRow(db, note.id)?.share_token).toBe(token);
-    expect(getSharedNote(db, token!)?.title).toBe("Groceries");
+    expect((await rawRow(db, note.id))?.share_token).toBe(token);
+    expect((await getSharedNote(db, token!))?.title).toBe("Groceries");
   });
 
-  test("another user's note → false and the row is unchanged (D24)", () => {
-    const note = createNote(db, alice, 1_000);
-    const before = rawRow(db, note.id);
+  test("another user's note → false and the row is unchanged (D24)", async () => {
+    const note = await createNote(db, alice, 1_000);
+    const before = await rawRow(db, note.id);
 
-    expect(updateNote(db, bob, note.id, groceries, 2_000)).toBe(false);
-    expect(rawRow(db, note.id)).toEqual(before);
+    expect(await updateNote(db, bob, note.id, groceries, 2_000)).toBe(false);
+    expect(await rawRow(db, note.id)).toEqual(before);
   });
 
-  test("a missing id → false", () => {
-    expect(updateNote(db, alice, crypto.randomUUID(), groceries)).toBe(false);
+  test("a missing id → false", async () => {
+    expect(await updateNote(db, alice, crypto.randomUUID(), groceries)).toBe(
+      false,
+    );
   });
 });
 
 describe("deleteNote", () => {
-  test("deletes the owner's note → true", () => {
-    const note = createNote(db, alice);
+  test("deletes the owner's note → true", async () => {
+    const note = await createNote(db, alice);
 
-    expect(deleteNote(db, alice, note.id)).toBe(true);
-    expect(rawRow(db, note.id)).toBeNull();
+    expect(await deleteNote(db, alice, note.id)).toBe(true);
+    expect(await rawRow(db, note.id)).toBeNull();
   });
 
-  test("another user's note → false and the row stays (D24)", () => {
-    const note = createNote(db, alice);
-    const before = rawRow(db, note.id);
+  test("another user's note → false and the row stays (D24)", async () => {
+    const note = await createNote(db, alice);
+    const before = await rawRow(db, note.id);
 
-    expect(deleteNote(db, bob, note.id)).toBe(false);
-    expect(rawRow(db, note.id)).toEqual(before);
+    expect(await deleteNote(db, bob, note.id)).toBe(false);
+    expect(await rawRow(db, note.id)).toEqual(before);
   });
 
-  test("a missing or already deleted id → false", () => {
-    const note = createNote(db, alice);
-    deleteNote(db, alice, note.id);
+  test("a missing or already deleted id → false", async () => {
+    const note = await createNote(db, alice);
+    await deleteNote(db, alice, note.id);
 
-    expect(deleteNote(db, alice, note.id)).toBe(false);
+    expect(await deleteNote(db, alice, note.id)).toBe(false);
   });
 });
 
 describe("enableShare", () => {
-  test("stores and returns the token", () => {
-    const note = createNote(db, alice);
+  test("stores and returns the token", async () => {
+    const note = await createNote(db, alice);
     const token = generateShareToken();
 
-    expect(enableShare(db, alice, note.id, token)).toBe(token);
-    expect(getNote(db, alice, note.id)?.shareToken).toBe(token);
+    expect(await enableShare(db, alice, note.id, token)).toBe(token);
+    expect((await getNote(db, alice, note.id))?.shareToken).toBe(token);
   });
 
-  test("twice → the same token (SHARE-6)", () => {
-    const note = createNote(db, alice);
-    const first = enableShare(db, alice, note.id, generateShareToken());
+  test("twice → the same token (SHARE-6)", async () => {
+    const note = await createNote(db, alice);
+    const first = await enableShare(db, alice, note.id, generateShareToken());
 
-    expect(enableShare(db, alice, note.id, generateShareToken())).toBe(first);
-    expect(rawRow(db, note.id)?.share_token).toBe(first);
+    expect(await enableShare(db, alice, note.id, generateShareToken())).toBe(
+      first,
+    );
+    expect((await rawRow(db, note.id))?.share_token).toBe(first);
   });
 
-  test("another user's note → null and nothing is stored", () => {
-    const note = createNote(db, alice);
+  test("another user's note → null and nothing is stored", async () => {
+    const note = await createNote(db, alice);
 
-    expect(enableShare(db, bob, note.id, generateShareToken())).toBeNull();
-    expect(rawRow(db, note.id)?.share_token).toBeNull();
-  });
-
-  test("a missing id → null", () => {
     expect(
-      enableShare(db, alice, crypto.randomUUID(), generateShareToken()),
+      await enableShare(db, bob, note.id, generateShareToken()),
+    ).toBeNull();
+    expect((await rawRow(db, note.id))?.share_token).toBeNull();
+  });
+
+  test("a missing id → null", async () => {
+    expect(
+      await enableShare(db, alice, crypto.randomUUID(), generateShareToken()),
     ).toBeNull();
   });
 
-  test("re-enabling after disableShare stores and returns the new token (SHARE-5)", () => {
-    const note = createNote(db, alice);
-    const oldToken = enableShare(db, alice, note.id, generateShareToken())!;
-    disableShare(db, alice, note.id);
+  test("re-enabling after disableShare stores and returns the new token (SHARE-5)", async () => {
+    const note = await createNote(db, alice);
+    const oldToken = (await enableShare(
+      db,
+      alice,
+      note.id,
+      generateShareToken(),
+    ))!;
+    await disableShare(db, alice, note.id);
     const newToken = generateShareToken();
 
-    expect(enableShare(db, alice, note.id, newToken)).toBe(newToken);
+    expect(await enableShare(db, alice, note.id, newToken)).toBe(newToken);
     expect(newToken).not.toBe(oldToken);
-    expect(getSharedNote(db, oldToken)).toBeNull();
-    expect(getSharedNote(db, newToken)).not.toBeNull();
+    expect(await getSharedNote(db, oldToken)).toBeNull();
+    expect(await getSharedNote(db, newToken)).not.toBeNull();
   });
 });
 
 describe("disableShare", () => {
-  test("clears the token, so getSharedNote(oldToken) → null (D6)", () => {
-    const note = createNote(db, alice);
-    const token = enableShare(db, alice, note.id, generateShareToken())!;
+  test("clears the token, so getSharedNote(oldToken) → null (D6)", async () => {
+    const note = await createNote(db, alice);
+    const token = (await enableShare(
+      db,
+      alice,
+      note.id,
+      generateShareToken(),
+    ))!;
 
-    expect(disableShare(db, alice, note.id)).toBe(true);
-    expect(rawRow(db, note.id)?.share_token).toBeNull();
-    expect(getSharedNote(db, token)).toBeNull();
+    expect(await disableShare(db, alice, note.id)).toBe(true);
+    expect((await rawRow(db, note.id))?.share_token).toBeNull();
+    expect(await getSharedNote(db, token)).toBeNull();
   });
 
-  test("an owned note that isn't shared → true (D42)", () => {
-    const note = createNote(db, alice);
+  test("an owned note that isn't shared → true (D42)", async () => {
+    const note = await createNote(db, alice);
 
-    expect(disableShare(db, alice, note.id)).toBe(true);
+    expect(await disableShare(db, alice, note.id)).toBe(true);
   });
 
-  test("another user's note → false and its token stays (D42)", () => {
-    const note = createNote(db, alice);
-    const token = enableShare(db, alice, note.id, generateShareToken());
+  test("another user's note → false and its token stays (D42)", async () => {
+    const note = await createNote(db, alice);
+    const token = await enableShare(db, alice, note.id, generateShareToken());
 
-    expect(disableShare(db, bob, note.id)).toBe(false);
-    expect(rawRow(db, note.id)?.share_token).toBe(token);
+    expect(await disableShare(db, bob, note.id)).toBe(false);
+    expect((await rawRow(db, note.id))?.share_token).toBe(token);
   });
 
-  test("a missing id → false", () => {
-    expect(disableShare(db, alice, crypto.randomUUID())).toBe(false);
+  test("a missing id → false", async () => {
+    expect(await disableShare(db, alice, crypto.randomUUID())).toBe(false);
   });
 });
 
 describe("share toggles", () => {
-  test("don't change updated_at (D32)", () => {
-    const note = createNote(db, alice, 1_000);
-    enableShare(db, alice, note.id, generateShareToken());
-    disableShare(db, alice, note.id);
-    enableShare(db, alice, note.id, generateShareToken());
+  test("don't change updated_at (D32)", async () => {
+    const note = await createNote(db, alice, 1_000);
+    await enableShare(db, alice, note.id, generateShareToken());
+    await disableShare(db, alice, note.id);
+    await enableShare(db, alice, note.id, generateShareToken());
 
-    expect(rawRow(db, note.id)?.updated_at).toBe(1_000);
+    expect((await rawRow(db, note.id))?.updated_at).toBe(1_000);
   });
 });
 
 describe("getSharedNote", () => {
-  test("returns only title, content and updatedAt (D8)", () => {
-    const note = createNote(db, alice, 1_000);
-    updateNote(db, alice, note.id, groceries, 2_000);
-    const token = enableShare(db, alice, note.id, generateShareToken())!;
+  test("returns only title, content and updatedAt (D8)", async () => {
+    const note = await createNote(db, alice, 1_000);
+    await updateNote(db, alice, note.id, groceries, 2_000);
+    const token = (await enableShare(
+      db,
+      alice,
+      note.id,
+      generateShareToken(),
+    ))!;
 
-    expect(getSharedNote(db, token)).toEqual({
+    expect(await getSharedNote(db, token)).toEqual({
       title: "Groceries",
       content: JSON.parse(groceries.content),
       updatedAt: 2_000,
     });
   });
 
-  test("an unknown token → null", () => {
-    createNote(db, alice);
+  test("an unknown token → null", async () => {
+    await createNote(db, alice);
 
-    expect(getSharedNote(db, generateShareToken())).toBeNull();
+    expect(await getSharedNote(db, generateShareToken())).toBeNull();
   });
 
-  test("after deleteNote → null", () => {
-    const note = createNote(db, alice);
-    const token = enableShare(db, alice, note.id, generateShareToken())!;
-    deleteNote(db, alice, note.id);
+  test("after deleteNote → null", async () => {
+    const note = await createNote(db, alice);
+    const token = (await enableShare(
+      db,
+      alice,
+      note.id,
+      generateShareToken(),
+    ))!;
+    await deleteNote(db, alice, note.id);
 
-    expect(getSharedNote(db, token)).toBeNull();
+    expect(await getSharedNote(db, token)).toBeNull();
   });
 });
 
@@ -365,26 +405,26 @@ describe("note table constraints", () => {
     return json;
   }
 
-  test("content of exactly 102 400 bytes is accepted (D40)", () => {
-    expect(() =>
-      insertRaw(db, alice, jsonOfBytes(CONTENT_MAX_BYTES)),
-    ).not.toThrow();
+  test("content of exactly 102 400 bytes is accepted (D40)", async () => {
+    await insertRaw(db, alice, jsonOfBytes(CONTENT_MAX_BYTES));
+
+    expect(await listNotes(db, alice)).toHaveLength(1);
   });
 
-  test("a direct INSERT with content over 102 400 bytes fails the CHECK (D40)", () => {
-    expect(() =>
+  test("a direct INSERT with content over 102 400 bytes fails the CHECK (D40)", async () => {
+    await expect(
       insertRaw(db, alice, jsonOfBytes(CONTENT_MAX_BYTES + 1)),
-    ).toThrow(/CHECK constraint failed/);
-    expect(listNotes(db, alice)).toEqual([]);
+    ).rejects.toThrow(/CHECK constraint failed/);
+    expect(await listNotes(db, alice)).toEqual([]);
   });
 
-  test("deleting a user row cascades to their notes", () => {
-    const note = createNote(db, alice);
-    const other = createNote(db, bob);
+  test("deleting a user row cascades to their notes", async () => {
+    const note = await createNote(db, alice);
+    const other = await createNote(db, bob);
 
-    db.query('DELETE FROM "user" WHERE id = ?').run(alice);
+    await db.execute({ sql: 'DELETE FROM "user" WHERE id = ?', args: [alice] });
 
-    expect(rawRow(db, note.id)).toBeNull();
-    expect(rawRow(db, other.id)).not.toBeNull();
+    expect(await rawRow(db, note.id)).toBeNull();
+    expect(await rawRow(db, other.id)).not.toBeNull();
   });
 });

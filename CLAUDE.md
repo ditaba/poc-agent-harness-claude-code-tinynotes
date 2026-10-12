@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project state
 
-TinyNotes is a demo notes app (email/password auth, TipTap rich-text notes, public share links) on Bun + Next.js App Router + `bun:sqlite`. **`SPEC.md` is the source of truth**: decisions (D1…), requirement IDs (AUTH-, NOTE-, SHARE-, PUB-, MSG-, NAV-), exact UI copy, SQL schema, file layout, function signatures, test cases and milestones (M0–M7). Read the relevant SPEC sections before implementing anything, and use its names exactly (routes, files, functions, error codes, UI strings).
+TinyNotes is a demo notes app (email/password auth, TipTap rich-text notes, public share links) on Bun + Next.js App Router + libSQL (`@libsql/client`: a local SQLite file in dev, Turso on Vercel, D49). **`SPEC.md` is the source of truth**: decisions (D1…), requirement IDs (AUTH-, NOTE-, SHARE-, PUB-, MSG-, NAV-), exact UI copy, SQL schema, file layout, function signatures, test cases and milestones (M0–M7). Read the relevant SPEC sections before implementing anything, and use its names exactly (routes, files, functions, error codes, UI strings).
 
 Progress is tracked in `prd.json` (tasks with `passes`) and `agent-progress.txt` (what each iteration did). Check both to see what exists instead of assuming. Until the M0 tasks pass, the repo is the plain `create-next-app` scaffold, and `package.json`, `.env.example` and `.gitignore` don't match SPEC §4 yet.
 
@@ -34,7 +34,8 @@ bun test lib/notes/validation           # one file (path filter)
 bun test lib/notes -t "TITLE_TOO_LONG"  # filter by test name
 ```
 
-- Next.js must run on the Bun runtime (`bun --bun next …`) because `bun:sqlite` only exists there (D28).
+- Locally, Next.js runs on the Bun runtime (`bun --bun next …`, D28). Nothing depends on it since the switch to libSQL (D49), and Vercel runs the functions on Node.js, so don't use Bun-only APIs (`bun:sqlite`, `Bun.*`) in app code.
+- Deploy target is Vercel + Turso (D49, SPEC §4): set `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `TURSO_DATABASE_URL` (`libsql://…`) and `TURSO_AUTH_TOKEN` in the Vercel project. `build` migrates Turso first, and `checkEnv` rejects a `file:` database when `VERCEL` is set.
 - `dev`/`build`/`start` stop at `db:migrate` if `.env` is missing or invalid (D36). Copy `.env.example` to `.env` with a ≥32-char `BETTER_AUTH_SECRET`.
 - A PostToolUse hook in `.claude/settings.json` runs `bun run format` after every Edit/Write, so don't run Prettier by hand. It fails silently until Prettier is installed in M0. `.prettierignore` skips `*.md` and `.claude/` (D46).
 - `bun test` exits non-zero when no test files exist (M0), so don't treat that as a failure there.
@@ -42,7 +43,7 @@ bun test lib/notes -t "TITLE_TOO_LONG"  # filter by test name
 
 ## Architecture (target, SPEC §9)
 
-- **Data layer**: one `bun:sqlite` `Database` singleton in `lib/db.ts` (cached on `globalThis` in dev for HMR; PRAGMAs `foreign_keys`, WAL, `busy_timeout`). Importing `lib/db.ts` opens `DB_PATH`, so only app code imports it; tests, `lib/testing/db.ts` and `scripts/migrate.ts` use the side-effect-free `openDatabase()` from `lib/open-database.ts` (D45). The app and better-auth share it (D29). Raw parameterized SQL only, no ORM or query builder. All note SQL lives in `lib/notes/repo.ts`, whose functions take `db` as their first argument so tests can pass an in-memory DB.
+- **Data layer**: one libSQL `Client` singleton in `lib/db.ts` (cached on `globalThis` in dev for HMR). `TURSO_DATABASE_URL` picks the database (unset → `file:data/app.db`; `libsql://…` → Turso with `TURSO_AUTH_TOKEN`). The client is async, so repo functions and `migrate()` return promises; read rows with `rowsOf<T>()`. Importing `lib/db.ts` opens `TURSO_DATABASE_URL`, so only app code imports it; tests, `lib/testing/db.ts` and `scripts/migrate.ts` use the side-effect-free `openDatabase()` from `lib/open-database.ts` (D45). The app and better-auth share it (D29); better-auth reaches it through `lib/libsql-dialect.ts`, a small Kysely dialect (D49). Raw parameterized SQL only, no ORM or query builder. All note SQL lives in `lib/notes/repo.ts`, whose functions take `db` as their first argument so tests can pass an in-memory DB.
 - **Migrations**: plain `.sql` files in `db/migrations/`, applied in filename order by `lib/migrate.ts` (pure, testable) through the CLI wrapper `scripts/migrate.ts`, and recorded in `_migrations`. Never edit an applied migration; add a new file. `0001_better_auth.sql` must match better-auth's expected schema exactly.
 - **Reads**: pages are Server Components that call `repo.*` with `db` directly (no fetch to their own API). Protected pages call `requireUser()` (redirects to `/sign-in`).
 - **Writes**: Server Actions in `lib/notes/actions.ts`. Each one calls `getCurrentUser()` itself and returns `ActionResult<T>` (`lib/errors.ts`), never throws to the client and never redirects. The exception is `createNoteAction`, the only form action, which redirects. Client components wrap every action call in `callAction()` (`lib/call-action.ts`), which turns a rejected call into `INTERNAL`. The only route handler is better-auth's `/api/auth/[...all]`.
@@ -59,7 +60,7 @@ bun test lib/notes -t "TITLE_TOO_LONG"  # filter by test name
 - App timestamps are INTEGER Unix ms, and note ids come from `crypto.randomUUID()` (D27).
 - Dependencies are pinned exactly (no `^`/`~`). Don't add packages that aren't in SPEC §4 without updating the spec.
 - Unit tests sit next to their module as `*.test.ts`. DB tests use `createTestDb()` (`:memory:` plus migrations) from `lib/testing/db.ts`. React components and Server Actions are covered by the manual checklist, not unit tests.
-- Mark the task blocked (see Ralph task rules) instead of working around these: `bun:sqlite` fails in Next under every R1 fallback (don't switch DB drivers); the static renderer fails to escape output (R4, don't add `@tiptap/html`); the rate limiter never triggers (R10).
+- Mark the task blocked (see Ralph task rules) instead of working around these: the libSQL client fails in Next or on Vercel (don't switch DB drivers again without approval); the static renderer fails to escape output (R4, don't add `@tiptap/html`); the rate limiter never triggers (R10).
 
 ## Library versions
 

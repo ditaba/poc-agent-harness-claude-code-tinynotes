@@ -8,7 +8,8 @@ bun install
 
 Copy `.env.example` to `.env` and replace `BETTER_AUTH_SECRET` with a real random
 secret of at least 32 characters. Keep `BETTER_AUTH_URL=http://localhost:3000`
-and `DB_PATH=data/app.db` for local use. Do not commit `.env` or `data/`.
+and `TURSO_DATABASE_URL=file:data/app.db` (a local SQLite file) for local use.
+Do not commit `.env` or `data/`.
 
 Build and run the production app:
 
@@ -37,6 +38,38 @@ bun run build
 
 UI acceptance uses the manual checklist in [SPEC.md](SPEC.md), run through
 Playwright MCP. Run `bun run format` before validation and committing changes.
+
+## Deploy to Vercel with Turso
+
+Vercel functions have no lasting disk, so the deployed app keeps its data in a
+[Turso](https://turso.tech) database (SPEC D49).
+
+1. Create the database and a token with the Turso CLI:
+
+   ```bash
+   turso db create tinynotes
+   turso db show --url tinynotes      # libsql://tinynotes-<org>.turso.io
+   turso db tokens create tinynotes
+   ```
+
+2. In the Vercel project, open **Settings → Environment Variables** and add:
+
+   | Variable | Value |
+   | --- | --- |
+   | `BETTER_AUTH_SECRET` | a random secret of at least 32 characters (`openssl rand -base64 32`) |
+   | `BETTER_AUTH_URL` | the production origin, e.g. `https://tinynotes.vercel.app` |
+   | `TURSO_DATABASE_URL` | the `libsql://…` URL from step 1 |
+   | `TURSO_AUTH_TOKEN` | the token from step 1 |
+
+3. Deploy. Vercel installs with Bun (`bun.lock`) and runs `bun run build`,
+   which applies pending migrations to Turso before building.
+
+Notes:
+
+- Sign-in only works on the origin in `BETTER_AUTH_URL`. Preview URLs are
+  different origins, and they share the production database unless the
+  Preview environment gets its own `TURSO_*` values.
+- Dates are formatted in the server's time zone, which is UTC on Vercel.
 
 ```
 branch:

@@ -15,9 +15,9 @@ const loadSharedNote = cache(async (token: string) => {
   if (!isShareTokenFormat(token)) {
     notFound();
   }
-  // The synchronous SQLite query must read the latest saved state at request time (D7).
+  // The query must run at request time, so it reads the latest saved state (D7).
   await connection();
-  const note = getSharedNote(db, token);
+  const note = await getSharedNote(db, token);
   if (!note) {
     notFound();
   }

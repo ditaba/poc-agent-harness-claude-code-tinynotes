@@ -1347,3 +1347,25 @@ LiteralPath read succeeded. No failed application acceptance check remains.
 Prior two checklist tasks plus this task cover all SPEC steps 1–27. Fresh DB
 retained; earlier database preserved in temporary backup. No push or deployment.
 Final format, Prettier check and diff check pass. Initial Git staging failed: fatal Unable to create 'D:/Projects/poc-agent-harness-claude-code-tinynotes/.git/index.lock': Permission denied. Requesting reviewed escalation for task-only staging and commit; initial human PRD hunk excluded.
+
+## 2026-10-12 – Vercel + Turso (D49, outside prd.json, done in an interactive session)
+
+Why: the Vercel deploy failed at db:migrate (no BETTER_AUTH_SECRET/BETTER_AUTH_URL), and even with
+the env set, bun:sqlite + a file in data/ can't work on Vercel (Node runtime, no lasting disk).
+The user chose Turso.
+
+Changes: bun:sqlite → @libsql/client 0.18.0 (+ kysely 0.29.6, same version better-auth installs).
+lib/open-database.ts opens a libSQL Client and adds rowsOf<T>(); lib/db.ts reads TURSO_DATABASE_URL
+(default file:data/app.db) and TURSO_AUTH_TOKEN. Repo functions, migrate() and the test helpers are
+async; the SQL is unchanged. New lib/libsql-dialect.ts lets better-auth share the client
+(database: { dialect, type: "sqlite", transaction: true }). checkEnv: a *.turso.io URL needs
+TURSO_AUTH_TOKEN, and a file: database is rejected when VERCEL is set; messages also point to the
+host's env vars. package-lock.json removed so Vercel installs with Bun. SPEC (D28, D29, D33, D45,
+new D49, §4, §8, §9, §10, R1, R2, R7), CLAUDE.md, .codex/rules/project.md, README and RALPH.md updated.
+
+Checks: bun test 126 pass/0 fail; typecheck and lint clean; bun run build passes. Against a scratch
+file database: under Node `next start` (as on Vercel), sign-up, New note, title + content Save,
+enable share, the /s/ page with no cookies, sign-in again, duplicate sign-up (422 → "An account with
+this email already exists.") and wrong password (401 → "Invalid email or password.") all work.
+Under `bun run start` (Bun runtime), sign-up, create, save and delete work. Not verified: a real
+Turso database and a real Vercel deploy (no credentials here).

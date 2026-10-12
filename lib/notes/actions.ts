@@ -24,7 +24,7 @@ export async function createNoteAction(): Promise<void> {
   if (!user) {
     redirect("/sign-in");
   }
-  const note = createNote(db, user.id); // title "", EMPTY_DOC (NOTE-4)
+  const note = await createNote(db, user.id); // title "", EMPTY_DOC (NOTE-4)
   // Purges the client router cache, so a cached /notes without the new note is never shown (NOTE-4).
   revalidatePath("/notes");
   redirect(`/notes/${note.id}`);
@@ -34,13 +34,13 @@ export async function saveNoteAction(
   id: string,
   input: NoteInput,
 ): Promise<ActionResult<{ updatedAt: number }>> {
-  return runNoteAction((user) => {
+  return runNoteAction(async (user) => {
     const validated = validateNoteInput(input);
     if (!validated.ok) {
       return { ok: false, error: validated.error };
     }
     const updatedAt = Date.now();
-    if (!updateNote(db, user.id, id, validated.value, updatedAt)) {
+    if (!(await updateNote(db, user.id, id, validated.value, updatedAt))) {
       return { ok: false, error: "NOT_FOUND" }; // missing or not owned (NOTE-15)
     }
     // The list order and the editor page's title change. The editor ignores its new props, so the
@@ -52,8 +52,8 @@ export async function saveNoteAction(
 }
 
 export async function deleteNoteAction(id: string): Promise<ActionResult> {
-  return runNoteAction((user) => {
-    if (!deleteNote(db, user.id, id)) {
+  return runNoteAction(async (user) => {
+    if (!(await deleteNote(db, user.id, id))) {
       return { ok: false, error: "NOT_FOUND" }; // missing or not owned (NOTE-15)
     }
     // No revalidatePath: it would re-render the current page, which is now a 404. The client then calls
@@ -65,8 +65,8 @@ export async function deleteNoteAction(id: string): Promise<ActionResult> {
 export async function enableShareAction(
   id: string,
 ): Promise<ActionResult<{ shareUrl: string }>> {
-  return runNoteAction((user) => {
-    const token = enableShare(db, user.id, id, generateShareToken());
+  return runNoteAction(async (user) => {
+    const token = await enableShare(db, user.id, id, generateShareToken());
     if (!token) {
       return { ok: false, error: "NOT_FOUND" };
     }
@@ -78,8 +78,8 @@ export async function enableShareAction(
 }
 
 export async function disableShareAction(id: string): Promise<ActionResult> {
-  return runNoteAction((user) => {
-    if (!disableShare(db, user.id, id)) {
+  return runNoteAction(async (user) => {
+    if (!(await disableShare(db, user.id, id))) {
       return { ok: false, error: "NOT_FOUND" };
     }
     revalidatePath("/notes");
@@ -91,14 +91,15 @@ export async function disableShareAction(id: string): Promise<ActionResult> {
 // The shape every action called from client code shares (§9): no session → UNAUTHENTICATED, and an unexpected
 // error is logged and becomes INTERNAL, so the client only ever sees an ErrorCode. They never redirect (D41).
 async function runNoteAction<T>(
-  run: (user: CurrentUser) => ActionResult<T>,
+  run: (user: CurrentUser) => Promise<ActionResult<T>>,
 ): Promise<ActionResult<T>> {
   try {
     const user = await getCurrentUser();
     if (!user) {
       return { ok: false, error: "UNAUTHENTICATED" };
     }
-    return run(user);
+    // Awaited here so a rejected query is caught below.
+    return await run(user);
   } catch (error) {
     console.error("Note action failed:", error);
     return { ok: false, error: "INTERNAL" };

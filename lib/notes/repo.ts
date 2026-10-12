@@ -1,5 +1,6 @@
-import type { Database } from "bun:sqlite";
+import type { Client } from "@libsql/client";
 import type { JSONContent } from "@tiptap/core";
+import { rowsOf } from "../open-database";
 import { EMPTY_DOC } from "./editor-extensions";
 import type { ValidatedNoteInput } from "./validation";
 
@@ -45,28 +46,34 @@ type NoteSummaryRow = {
 
 type SharedNoteRow = { title: string; content: string; updated_at: number };
 
-export function listNotes(db: Database, userId: string): NoteSummary[] {
-  return db
-    .query<NoteSummaryRow, [string]>(
-      `SELECT id, title, updated_at, share_token IS NOT NULL AS is_shared
-       FROM note WHERE user_id = ? ORDER BY updated_at DESC`,
-    )
-    .all(userId)
-    .map((row) => ({
-      id: row.id,
-      title: row.title,
-      updatedAt: row.updated_at,
-      isShared: row.is_shared === 1,
-    }));
+export async function listNotes(
+  db: Client,
+  userId: string,
+): Promise<NoteSummary[]> {
+  const result = await db.execute({
+    sql: `SELECT id, title, updated_at, share_token IS NOT NULL AS is_shared
+          FROM note WHERE user_id = ? ORDER BY updated_at DESC`,
+    args: [userId],
+  });
+  return rowsOf<NoteSummaryRow>(result).map((row) => ({
+    id: row.id,
+    title: row.title,
+    updatedAt: row.updated_at,
+    isShared: row.is_shared === 1,
+  }));
 }
 
-export function getNote(db: Database, userId: string, id: string): Note | null {
-  const row = db
-    .query<NoteRow, [string, string]>(
-      `SELECT id, title, content, share_token, created_at, updated_at
-       FROM note WHERE id = ? AND user_id = ?`,
-    )
-    .get(id, userId);
+export async function getNote(
+  db: Client,
+  userId: string,
+  id: string,
+): Promise<Note | null> {
+  const result = await db.execute({
+    sql: `SELECT id, title, content, share_token, created_at, updated_at
+          FROM note WHERE id = ? AND user_id = ?`,
+    args: [id, userId],
+  });
+  const [row] = rowsOf<NoteRow>(result);
   if (!row) {
     return null;
   }
@@ -80,11 +87,11 @@ export function getNote(db: Database, userId: string, id: string): Note | null {
   };
 }
 
-export function createNote(
-  db: Database,
+export async function createNote(
+  db: Client,
   userId: string,
   now = Date.now(),
-): Note {
+): Promise<Note> {
   const note: Note = {
     id: crypto.randomUUID(), // D27
     title: "",
@@ -93,74 +100,83 @@ export function createNote(
     createdAt: now,
     updatedAt: now,
   };
-  db.query(
-    `INSERT INTO note (id, user_id, title, content, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-  ).run(note.id, userId, note.title, JSON.stringify(note.content), now, now);
+  await db.execute({
+    sql: `INSERT INTO note (id, user_id, title, content, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?)`,
+    args: [note.id, userId, note.title, JSON.stringify(note.content), now, now],
+  });
   return note;
 }
 
 // Leaves share_token alone, so saving never changes the share state (NOTE-16).
-export function updateNote(
-  db: Database,
+export async function updateNote(
+  db: Client,
   userId: string,
   id: string,
   input: ValidatedNoteInput,
   now = Date.now(),
-): boolean {
-  const { changes } = db
-    .query(
-      `UPDATE note SET title = ?, content = ?, updated_at = ?
-       WHERE id = ? AND user_id = ?`,
-    )
-    .run(input.title, input.content, now, id, userId);
-  return changes > 0;
+): Promise<boolean> {
+  const { rowsAffected } = await db.execute({
+    sql: `UPDATE note SET title = ?, content = ?, updated_at = ?
+          WHERE id = ? AND user_id = ?`,
+    args: [input.title, input.content, now, id, userId],
+  });
+  return rowsAffected > 0;
 }
 
-export function deleteNote(db: Database, userId: string, id: string): boolean {
-  const { changes } = db
-    .query("DELETE FROM note WHERE id = ? AND user_id = ?")
-    .run(id, userId);
-  return changes > 0;
+export async function deleteNote(
+  db: Client,
+  userId: string,
+  id: string,
+): Promise<boolean> {
+  const { rowsAffected } = await db.execute({
+    sql: "DELETE FROM note WHERE id = ? AND user_id = ?",
+    args: [id, userId],
+  });
+  return rowsAffected > 0;
 }
 
 // Returns the existing token if the note is already shared (SHARE-6), else stores `token`.
 // null when the note is missing or not owned. Share toggles leave updated_at alone (D32).
-export function enableShare(
-  db: Database,
+export async function enableShare(
+  db: Client,
   userId: string,
   id: string,
   token: string,
-): string | null {
-  const row = db
-    .query<{ share_token: string }, [string, string, string]>(
-      `UPDATE note SET share_token = COALESCE(share_token, ?)
-       WHERE id = ? AND user_id = ? RETURNING share_token`,
-    )
-    .get(token, id, userId);
+): Promise<string | null> {
+  const result = await db.execute({
+    sql: `UPDATE note SET share_token = COALESCE(share_token, ?)
+          WHERE id = ? AND user_id = ? RETURNING share_token`,
+    args: [token, id, userId],
+  });
+  const [row] = rowsOf<{ share_token: string }>(result);
   return row?.share_token ?? null;
 }
 
 // SQLite counts every row the WHERE matches as changed, so an owned note that is already
 // private still returns true (D42).
-export function disableShare(
-  db: Database,
+export async function disableShare(
+  db: Client,
   userId: string,
   id: string,
-): boolean {
-  const { changes } = db
-    .query("UPDATE note SET share_token = NULL WHERE id = ? AND user_id = ?")
-    .run(id, userId);
-  return changes > 0;
+): Promise<boolean> {
+  const { rowsAffected } = await db.execute({
+    sql: "UPDATE note SET share_token = NULL WHERE id = ? AND user_id = ?",
+    args: [id, userId],
+  });
+  return rowsAffected > 0;
 }
 
 // Public lookup: no user scope, and only what the shared page shows (D8).
-export function getSharedNote(db: Database, token: string): SharedNote | null {
-  const row = db
-    .query<SharedNoteRow, [string]>(
-      "SELECT title, content, updated_at FROM note WHERE share_token = ?",
-    )
-    .get(token);
+export async function getSharedNote(
+  db: Client,
+  token: string,
+): Promise<SharedNote | null> {
+  const result = await db.execute({
+    sql: "SELECT title, content, updated_at FROM note WHERE share_token = ?",
+    args: [token],
+  });
+  const [row] = rowsOf<SharedNoteRow>(result);
   if (!row) {
     return null;
   }

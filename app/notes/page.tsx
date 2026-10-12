@@ -13,7 +13,7 @@ export default async function NotesPage() {
   // Signed-out users go to /sign-in (AUTH-12, D25).
   const user = await requireUser();
   // Only this user's notes, last edited first (NOTE-1, NOTE-3, D3).
-  const notes = listNotes(db, user.id);
+  const notes = await listNotes(db, user.id);
   return (
     <>
       <AppHeader email={user.email} />
