@@ -19,6 +19,9 @@ ralph.ts gives every iteration this section, so record here what you would other
 - better-auth 1.7.7 sign-up duplicate email throws `BASE_ERROR_CODES.USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL` (422; `node_modules/better-auth/dist/api/routes/sign-up.mjs`). better-call VALIDATION_ERROR message is `[body.<field>] <msg>` joined by `; ` for several issues.
 - Playwright MCP: run a whole checklist flow in one browser_run_code_unsafe call (fill, click, read role=status/alert textContent); `page.route("**/api/auth/**", r => r.abort())` simulates a network failure. authClient returns `{ error }` for HTTP errors; AuthForm still wraps it in try/catch for thrown fetch errors.
 - Playwright selectors: scope to `main` (`main button[type=submit]`, `main [role=alert]`); in dev the Next devtools button and the always-present `#__next-route-announcer__` (role=alert) break strict-mode `getByRole`.
+- Playwright MCP tab can go stale after HMR rebuilds (viewportSize() null, clicks dispatch no DOM events); run the flow in `const p = await page.context().newPage()` instead.
+- Use a throwaway DB for manual checks: `DB_PATH=data/m4-test.db bun run dev` (process env beats .env); delete `data/m4-test.db*` afterwards.
+- Next 16 error.tsx: `reset()` only clears boundary state (no refetch); `retry()` / `catchError` from `next/error` also refreshes. SPEC wants `reset()`, which recovers fine from a failed form action.
 
 ## 2026-10-12 – M0-deps (passes)
 - Files: package.json (all §4 pins, packageManager bun@1.3.14, M0 scripts without db:migrate), bun.lock, .prettierrc, .prettierignore (`*.md`, `.claude/`), app/page.tsx + next.config.ts (format/class sort only).
@@ -140,3 +143,9 @@ ralph.ts gives every iteration this section, so record here what you would other
 - Files: lib/errors.ts (ErrorCode, ActionResult, ERROR_MESSAGES with §7 copy), lib/call-action.ts (try/await run(); catch → console.error + INTERNAL, D39), lib/format-date.ts (Intl.DateTimeFormat en-US medium/short, optional timeZone, D33), lib/call-action.test.ts (3), lib/format-date.test.ts (1).
 - Checks: bun test lib/call-action lib/format-date 4 pass; bun test 81 pass; lint 0; typecheck 0; build 0.
 - Bun 1.3.14 Intl output "Oct 10, 2026, 3:45 PM" uses a plain space before PM, so no U+202F normalization needed.
+
+## 2026-10-12 – M4-notes-list (passes)
+- Files: lib/notes/actions.ts ("use server", createNoteAction: no user → redirect /sign-in, else createNote + redirect /notes/{id}, no try/catch), components/new-note-button.tsx (server <form action>), app/notes/page.tsx (listNotes rows: title or "Untitled", "Updated {formatDateTime}", "Shared" badge; empty state), app/error.tsx ("Something went wrong" + "Try again" → reset()).
+- Checks: bun test 81 pass; lint 0; typecheck 0; build 0; grep for the test throw → no output.
+- Playwright (dev, fresh DB_PATH=data/m4-test.db): step 2 empty state; New note → /notes/{uuid}, DB row title "" + EMPTY_DOC, second note listed first; share_token set via SQL → "Shared" badge; cookies cleared then New note → /sign-in; bob's /notes empty (NOTE-3); temporary throw → error.tsx, Try again → list back.
+- The other saveNoteAction/deleteNoteAction/share actions are left for later tasks; actions.ts only has createNoteAction.
