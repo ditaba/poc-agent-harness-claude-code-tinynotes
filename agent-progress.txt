@@ -27,6 +27,7 @@ ralph.ts gives every iteration this section, so record here what you would other
 - Tailwind 4 `@theme inline` vars (e.g. `--font-mono`) are not emitted as CSS variables; in plain CSS use `var(--font-geist-mono)` and `var(--color-zinc-*)` (those exist).
 - Playwright paste into TipTap: `el.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true }))` with a `DataTransfer` holding text/plain (works for 2 MB); count POSTs with `p.on("request")` to prove no action call.
 - Playwright: test a Server Action with a foreign id by rewriting the POST body in `page.route` (`route.continue({ postData: body.replace(ownId, otherId) })`); replaying a captured action POST via `context.request` returns the HTML 404 page instead.
+- Playwright private window / second user: `const c = await page.context().browser().newContext()` gives an isolated cookie jar (close it after); the MCP default context keeps the signed-in user.
 - Playwright clipboard: `ctx.grantPermissions(["clipboard-read","clipboard-write"], { origin })` then `navigator.clipboard.readText()`; read button labels with `locator(":has-text('Copied!')").waitFor()`, not innerText right after click (the write is async).
 - Playwright treats `aria-disabled="true"` buttons as not enabled; use `click({ force: true })` to test that they do nothing. Click the text (`ed.getByText(...)`) to place the cursor, not `ed.click()` (StarterKit TrailingNode adds an empty paragraph after headings/code blocks, and the centre of the min-h-64 editor lands there).
 - TipTap 3.31 toolbar state: `useEditorState({ editor, selector })` returning an array of `{ pressed, enabled }` stays fresh; `enabled` = `command(editor.can().chain()).run()`, run = `command(editor.chain().focus()).run()`; `onMouseDown` preventDefault keeps the editor selection.
@@ -233,3 +234,13 @@ ralph.ts gives every iteration this section, so record here what you would other
   11 reload keeps title + all formatting; list shows Groceries with "Updated …". 12 "   " → Untitled listed above Groceries.
   13 201-char title → NOTE-11 message, stays on edit, Saved replaces it (that note is now titled "Short"). 14 150 KB and +2 MB paste → NOTE-12 message, 0 POSTs.
 - Checks: bun test 81 pass; lint 0; typecheck 0; build 0. data/ kept for M7-checklist-15-24 (users: ada only; notes: Groceries shared-ready, "Short").
+
+## 2026-10-12 – M7-checklist-15-24 (passes)
+- Files: prd.json, agent-progress.txt (no code changes; nothing failed).
+- Kept data/ from part 1; bun run build (exit 0) && bun run start; Playwright MCP §11 steps 15–24 in order, production mode:
+  15 slow "Creating link…" disabled → link shown; /notes Groceries has "Shared"; Copy → "Copied!", clipboard = URL. 16 new context: 200, title, "Last updated …", content, "Shared with TinyNotes", no inputs/buttons/contenteditable, no email in source.
+  17 edit+save → shared page shows new text; note still shared. 18 tab 2 disables; tab 1 slow "Disabling…" disabled → private, no error; old link 404 "This note isn't available".
+  19 re-enable → new token, old still 404. 20 /s/short 404. 21 bob signs up: empty list, Ada's /notes/{id} 404 "Page not found", Ada's share link 200.
+  22 Cancel keeps note; OK slow → "Deleting…" + Save disabled → /notes without Groceries; link 404. 23 sign out in tab 2 → UNAUTHENTICATED message, Sign in link target=_blank; sign in there → Save works.
+  24 server stopped → "Something went wrong. Please try again.", button "Save" enabled; restarted, Save works.
+- Checks: bun test 81 pass; lint 0; typecheck 0; build 0. data/ now: ada + bob; Ada's note "Short".
