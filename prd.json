@@ -590,7 +590,8 @@
       "Playwright MCP (bun run dev): §11 steps 14, 23 and 24",
       "NOT_FOUND: with the note open, run bun -e 'import { Database } from \"bun:sqlite\"; new Database(\"data/app.db\").run(\"DELETE FROM note WHERE id = ?\", [\"<id>\"])', then click Save"
     ],
-    "passes": false
+    "passes": false,
+    "blocked": "Required Playwright MCP verification unavailable: plugin:playwright:playwright failed to connect (CONNECT_TIMEOUT after 30000ms), and ToolSearch found no browser tools. Code is implemented and committed (client size check, UNAUTHENTICATED Sign in link in new tab; INTERNAL/NOT_FOUND paths already handled by callAction/saveNoteAction); bun test/lint/build/typecheck pass. Remaining: run §11 steps 14, 23, 24 and the NOT_FOUND SQL check with Playwright MCP, then set passes=true and remove this field."
   },
   {
     "id": "M4-delete",

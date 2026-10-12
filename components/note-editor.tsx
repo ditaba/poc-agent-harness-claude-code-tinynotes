@@ -7,7 +7,11 @@ import { callAction } from "@/lib/call-action";
 import { ERROR_MESSAGES } from "@/lib/errors";
 import { saveNoteAction } from "@/lib/notes/actions";
 import { editorExtensions } from "@/lib/notes/editor-extensions";
-import { TITLE_MAX_LENGTH } from "@/lib/notes/limits";
+import {
+  CONTENT_MAX_BYTES,
+  TITLE_MAX_LENGTH,
+  utf8ByteLength,
+} from "@/lib/notes/limits";
 import { MessageRegion, type Message } from "./message-region";
 
 export function NoteEditor({
@@ -49,12 +53,24 @@ export function NoteEditor({
     if (!editor) return;
     const editsAtClick = editCount.current;
     const input = { title, content: JSON.stringify(editor.getJSON()) };
+    // Checked before sending, so no request is made at any size (NOTE-12, D40).
+    if (utf8ByteLength(input.content) > CONTENT_MAX_BYTES) {
+      setMessage({ kind: "error", text: ERROR_MESSAGES.CONTENT_TOO_LARGE });
+      return;
+    }
     setMessage(null);
     setSaving(true);
     const result = await callAction(() => saveNoteAction(note.id, input));
     setSaving(false);
     if (!result.ok) {
-      setMessage({ kind: "error", text: ERROR_MESSAGES[result.error] });
+      setMessage({
+        kind: "error",
+        text: ERROR_MESSAGES[result.error],
+        link:
+          result.error === "UNAUTHENTICATED"
+            ? { href: "/sign-in", label: "Sign in" }
+            : undefined,
+      });
     } else if (editCount.current === editsAtClick) {
       setMessage({ kind: "status", text: "Saved" });
     }
