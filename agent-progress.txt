@@ -16,6 +16,7 @@ ralph.ts gives every iteration this section, so record here what you would other
 - `@tiptap/static-renderer` 3.31 html-string output: `<br/>` self-closing, `<ol>` without `start` attr when absent, codeBlock emits `<pre><code class="language-…">`.
 - bun:sqlite UPDATE `.run().changes` counts matched rows even when values are unchanged, so disableShare on a private owned note returns true (D42).
 - TipTap 3.31 server validation: `Node.fromJSON(getSchema(editorExtensions), json)` throws RangeError on unknown node/mark types and silently drops unknown attrs; `toJSON()` adds default attrs (e.g. heading level), so normalized JSON can be larger than input. Bash heredocs with nested quotes can break on Windows Git Bash; use the Write tool for new files.
+- better-auth 1.7.7 sign-up duplicate email throws `BASE_ERROR_CODES.USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL` (422; `node_modules/better-auth/dist/api/routes/sign-up.mjs`). better-call VALIDATION_ERROR message is `[body.<field>] <msg>` joined by `; ` for several issues.
 
 ## 2026-10-12 – M0-deps (passes)
 - Files: package.json (all §4 pins, packageManager bun@1.3.14, M0 scripts without db:migrate), bun.lock, .prettierrc, .prettierignore (`*.md`, `.claude/`), app/page.tsx + next.config.ts (format/class sort only).
@@ -108,3 +109,9 @@ ralph.ts gives every iteration this section, so record here what you would other
 - `grep -n trustedOrigins lib/auth.ts` empty (comment avoids the word on purpose).
 - Checks: bun test 61 pass; lint 0; typecheck 0; build 0 (route ƒ /api/auth/[...all]).
 - getCurrentUser/requireUser behavior is checked via pages in M3-sign-up and M3-notes-shell.
+
+## 2026-10-12 – M3-auth-errors (passes)
+- Added: lib/auth-errors.ts (authErrorMessage, AuthError type), lib/auth-errors.test.ts (16 cases: every §7 row, both duplicate-email codes, VALIDATION_ERROR on body.email/body.password/other, 429, null, unknown codes incl. "toString").
+- Confirmed in node_modules: @better-auth/core BASE_ERROR_CODES has USER_ALREADY_EXISTS and USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL; sign-up.mjs throws USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL (422). Both mapped.
+- Status 429 is checked before code (rate-limit response has no code); VALIDATION_ERROR uses the first `[body.x]` issue; code lookup uses Object.hasOwn so prototype keys fall to generic.
+- Checks: bun test lib/auth-errors 16 pass; bun test 77 pass; lint 0; typecheck 0; build 0.
