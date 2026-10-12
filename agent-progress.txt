@@ -101,3 +101,10 @@ ralph.ts gives every iteration this section, so record here what you would other
 - createNote returns structuredClone(EMPTY_DOC) so callers can't mutate the shared constant.
 - D40 CHECK test inserts a JSON string literal of exactly 102 400 bytes (ok) and 102 401 (CHECK constraint failed).
 - Checks: bun test lib/share-token lib/notes 52 pass; bun test 61 pass; lint 0; typecheck 0; build 0. M2 Done-when met.
+
+## 2026-10-12 – M3-auth-server (passes)
+- Added: lib/auth.ts (betterAuth on shared db, emailAndPassword enabled+autoSignIn, D44 customRules, no trustedOrigins), app/api/auth/[...all]/route.ts (toNextJsHandler), lib/session.ts (CurrentUser, cache()'d getCurrentUser, requireUser → redirect("/sign-in")).
+- bun run dev + curl sign-up/email → 200 + `better-auth.session_token…; HttpOnly; SameSite=Lax`; get-session with that cookie → 200 with user (name = email sent by client).
+- `grep -n trustedOrigins lib/auth.ts` empty (comment avoids the word on purpose).
+- Checks: bun test 61 pass; lint 0; typecheck 0; build 0 (route ƒ /api/auth/[...all]).
+- getCurrentUser/requireUser behavior is checked via pages in M3-sign-up and M3-notes-shell.
