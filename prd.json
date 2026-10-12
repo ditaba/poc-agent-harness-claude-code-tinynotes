@@ -6,7 +6,7 @@
     "spec": ["§4", "§14 M0", "D19", "D23", "D46"],
     "dependsOn": [],
     "acceptance": [
-      "package.json lists exactly the §4 packages at the §4 versions with no ^ or ~, plus \"packageManager\": \"bun@1.3.12\" (D19)",
+      "package.json lists exactly the §4 packages at the §4 versions with no ^ or ~, plus \"packageManager\": \"bun@1.3.14\" (D19)",
       "Scripts lint, typecheck, test and format match §4; dev/build/start are `bun --bun next dev|build|start` without the db:migrate prefix and there is no db:migrate script yet (§14 M0; added in M1-db-cli)",
       "`bun run format` formats code, CSS and JSON and sorts Tailwind classes, but leaves *.md and .claude/ untouched: Prettier reports SPEC.md and .claude/settings.json as ignored (D23, D46)",
       "`bun install --frozen-lockfile`, `bun run lint` and `bun run typecheck` exit 0 on the scaffold"
@@ -20,7 +20,7 @@
       "bun run lint",
       "bun run typecheck"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "M0-env",
