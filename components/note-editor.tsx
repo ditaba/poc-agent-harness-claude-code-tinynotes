@@ -2,10 +2,11 @@
 
 import type { JSONContent } from "@tiptap/core";
 import { EditorContent, useEditor } from "@tiptap/react";
+import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { callAction } from "@/lib/call-action";
-import { ERROR_MESSAGES } from "@/lib/errors";
-import { saveNoteAction } from "@/lib/notes/actions";
+import { ERROR_MESSAGES, type ErrorCode } from "@/lib/errors";
+import { deleteNoteAction, saveNoteAction } from "@/lib/notes/actions";
 import { editorExtensions } from "@/lib/notes/editor-extensions";
 import {
   CONTENT_MAX_BYTES,
@@ -13,6 +14,17 @@ import {
   utf8ByteLength,
 } from "@/lib/notes/limits";
 import { MessageRegion, type Message } from "./message-region";
+
+function errorMessage(error: ErrorCode): Message {
+  return {
+    kind: "error",
+    text: ERROR_MESSAGES[error],
+    link:
+      error === "UNAUTHENTICATED"
+        ? { href: "/sign-in", label: "Sign in" }
+        : undefined,
+  };
+}
 
 export function NoteEditor({
   note,
@@ -24,6 +36,8 @@ export function NoteEditor({
   const [title, setTitle] = useState(note.title);
   const [message, setMessage] = useState<Message | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const router = useRouter();
   // Bumped on every title or content change; "Saved" is shown only if it
   // hasn't moved since the click (D38).
   const editCount = useRef(0);
@@ -63,18 +77,28 @@ export function NoteEditor({
     const result = await callAction(() => saveNoteAction(note.id, input));
     setSaving(false);
     if (!result.ok) {
-      setMessage({
-        kind: "error",
-        text: ERROR_MESSAGES[result.error],
-        link:
-          result.error === "UNAUTHENTICATED"
-            ? { href: "/sign-in", label: "Sign in" }
-            : undefined,
-      });
+      setMessage(errorMessage(result.error));
     } else if (editCount.current === editsAtClick) {
       setMessage({ kind: "status", text: "Saved" });
     }
   }
+
+  async function handleDelete() {
+    if (!confirm("Delete this note? This can't be undone.")) return;
+    setMessage(null);
+    setDeleting(true);
+    const result = await callAction(() => deleteNoteAction(note.id));
+    if (result.ok) {
+      // Stays "Deleting…" until the navigation replaces the page (D41).
+      router.replace("/notes");
+      return;
+    }
+    setDeleting(false);
+    setMessage(errorMessage(result.error));
+  }
+
+  // Save and Delete are both disabled while either is pending (D38).
+  const pending = saving || deleting;
 
   return (
     <div className="mt-4 flex flex-col gap-4">
@@ -95,10 +119,18 @@ export function NoteEditor({
         <button
           type="button"
           onClick={handleSave}
-          disabled={!editor || saving}
+          disabled={!editor || pending}
           className="rounded bg-zinc-900 px-4 py-2 font-medium text-white disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
         >
           {saving ? "Saving…" : "Save"}
+        </button>
+        <button
+          type="button"
+          onClick={handleDelete}
+          disabled={pending}
+          className="rounded border border-red-700 px-4 py-2 font-medium text-red-700 disabled:opacity-60 dark:border-red-400 dark:text-red-400"
+        >
+          {deleting ? "Deleting…" : "Delete"}
         </button>
         <MessageRegion message={message} />
       </div>
