@@ -463,7 +463,7 @@
       "bun run lint",
       "bun run typecheck"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "M4-notes-list",
