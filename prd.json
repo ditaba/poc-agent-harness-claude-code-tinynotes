@@ -692,7 +692,7 @@
       "grep -rln dangerouslySetInnerHTML app components lib  # only components/note-content.tsx",
       "Playwright MCP (bun run dev): §11 steps 8 (Sharing), 15–20, 21 (share link) and 22 (share link → 404)"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "M6-toolbar",
