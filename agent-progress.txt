@@ -14,6 +14,7 @@ ralph.ts gives every iteration this section, so record here what you would other
 - `bun:sqlite` `db.run(sql)` executes a multi-statement .sql file (no params); DDL inside `db.transaction()` rolls back fully on error (verified in lib/migrate.test.ts).
 - Bun auto-loads `.env` for `bun scripts/*.ts`, so scripts/migrate.ts reads env via process.env with no dotenv; insertTestUser(db, email?) from lib/testing/db.ts is the user fixture for DB tests.
 - `@tiptap/static-renderer` 3.31 html-string output: `<br/>` self-closing, `<ol>` without `start` attr when absent, codeBlock emits `<pre><code class="language-…">`.
+- bun:sqlite UPDATE `.run().changes` counts matched rows even when values are unchanged, so disableShare on a private owned note returns true (D42).
 - TipTap 3.31 server validation: `Node.fromJSON(getSchema(editorExtensions), json)` throws RangeError on unknown node/mark types and silently drops unknown attrs; `toJSON()` adds default attrs (e.g. heading level), so normalized JSON can be larger than input. Bash heredocs with nested quotes can break on Windows Git Bash; use the Write tool for new files.
 
 ## 2026-10-12 – M0-deps (passes)
@@ -93,3 +94,10 @@ ralph.ts gives every iteration this section, so record here what you would other
 - Static renderer escapes text (&lt;script&gt;) and attrs (codeBlock language → class="language-&quot;&gt;&lt;img…"); no R4 block needed.
 - Tests: one case per D4 node/mark, every-format doc yields exactly the PUB-4 tag set, two escaping cases.
 - Checks: bun test lib/notes/render 15 pass; bun test 46 pass; lint 0; typecheck 0; build 0.
+
+## 2026-10-12 – M2-repo (passes)
+- Added: lib/notes/repo.ts (listNotes, getNote, createNote, updateNote, deleteNote, enableShare, disableShare, getSharedNote), lib/notes/repo.test.ts (15 cases, every §11 repo row).
+- Owner queries all use `WHERE id = ? AND user_id = ?`; booleans come from `.run().changes`; enableShare uses `COALESCE(share_token, ?) … RETURNING share_token`.
+- createNote returns structuredClone(EMPTY_DOC) so callers can't mutate the shared constant.
+- D40 CHECK test inserts a JSON string literal of exactly 102 400 bytes (ok) and 102 401 (CHECK constraint failed).
+- Checks: bun test lib/share-token lib/notes 52 pass; bun test 61 pass; lint 0; typecheck 0; build 0. M2 Done-when met.

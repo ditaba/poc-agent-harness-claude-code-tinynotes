@@ -278,7 +278,7 @@
       "bun run lint",
       "bun run typecheck"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "M3-auth-server",
