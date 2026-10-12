@@ -215,3 +215,9 @@ ralph.ts gives every iteration this section, so record here what you would other
 - Checks: grep prefers-color-scheme|dark: → no output; bun test 81 pass; lint 0; build 0; typecheck 0.
 - Playwright (dev, DB_PATH=data/m7v-test.db, deleted afterwards) at 375x800 with a long unbroken title and content: scrollWidth <= innerWidth on /sign-in, /sign-up, /notes (empty and list), /notes/{id} (shared), /s/{token}, /s/short, missing note 404; all have page-container. Screenshots of note, shared, notes and sign-up (also 1280 wide) look right.
 - Tab through /notes/{id}: TinyNotes link, Sign out, All notes, Title, Bold (toolbar), editor, Save, Delete, Share link, Copy link, Disable link all match :focus-visible with a 2px solid outline. No copy/aria/behaviour changes.
+
+## 2026-10-12 – M7-readme-cleanup (passes)
+- Files: deleted public/file.svg, globe.svg, next.svg, vercel.svg, window.svg (public/ is now empty); prd.json.
+- README.md already had the Setup section (Bun 1.3.14, bun install, copy .env.example to .env with a ≥32-char secret, bun run build && bun run start or bun run dev, §11 commands) above the existing notes, so it was left unchanged.
+- app/page.tsx already only redirects (NAV-1), so no default page content was left.
+- Checks: grep for the svg names in app components lib → no output; bun test 81 pass; lint 0; build 0; typecheck 0.
