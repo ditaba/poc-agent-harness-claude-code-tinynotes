@@ -39,7 +39,7 @@
       "git ls-files .env data  # expect no output",
       "git ls-files .env.example  # after the commit: lists it"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "M0-spike-sqlite",

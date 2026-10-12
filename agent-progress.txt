@@ -14,3 +14,9 @@ ralph.ts gives every iteration this section, so record here what you would other
 - Checks: bun install --frozen-lockfile 0; no ^/~ in package.json; bun run format + prettier --check . 0; --file-info SPEC.md and .claude/settings.json ignored:true; lint 0; typecheck 0 (after build regenerated stale .next types); build 0.
 - Decision: task text said bun@1.3.12 but SPEC §4/D19 say 1.3.14 (1.3.12 can't build); used 1.3.14 and corrected the prd acceptance line.
 - Tailwind/@tailwindcss/postcss moved to dependencies (§4 doesn't mark them dev).
+
+## 2026-10-12 – M0-env (passes)
+- Files: .gitignore (`!.env.example` after `.env*`, new `# local database` / `data/` section), .env.example (new, §4 three keys), prd.json (passes).
+- Local .env already existed with a 43-char secret and the §4 URL/DB_PATH; kept it, not committed.
+- Checks: `git check-ignore -v .env data/app.db` lists both (exit 0); `git check-ignore .env.example` exit 1 no output; `git ls-files .env data` empty; `git ls-files .env.example` lists it after commit.
+- Committed via a temporary index from HEAD so the human's staged .gitignore (.playwright-mcp/.ralph/data) and prd.json changes stay staged and out of this commit.
