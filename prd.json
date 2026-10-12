@@ -528,7 +528,7 @@
       "bun run build",
       "Playwright MCP (bun run dev): step 8 without the Sharing section and Save/Delete; step 21's NOTE-15 check; console has no hydration errors"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "M4-save",

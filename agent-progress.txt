@@ -22,6 +22,8 @@ ralph.ts gives every iteration this section, so record here what you would other
 - Playwright MCP tab can go stale after HMR rebuilds (viewportSize() null, clicks dispatch no DOM events); run the flow in `const p = await page.context().newPage()` instead.
 - Use a throwaway DB for manual checks: `DB_PATH=data/m4-test.db bun run dev` (process env beats .env); delete `data/m4-test.db*` afterwards.
 - Next 16 error.tsx: `reset()` only clears boundary state (no refetch); `retry()` / `catchError` from `next/error` also refreshes. SPEC wants `reset()`, which recovers fine from a failed form action.
+- Next 16 `PageProps<"/notes/[id]">` (global, params is a Promise) only typechecks after `next build`/`next dev` generates route types; run typecheck after build for new routes.
+- Tailwind 4 `@theme inline` vars (e.g. `--font-mono`) are not emitted as CSS variables; in plain CSS use `var(--font-geist-mono)` and `var(--color-zinc-*)` (those exist).
 
 ## 2026-10-12 – M0-deps (passes)
 - Files: package.json (all §4 pins, packageManager bun@1.3.14, M0 scripts without db:migrate), bun.lock, .prettierrc, .prettierignore (`*.md`, `.claude/`), app/page.tsx + next.config.ts (format/class sort only).
@@ -149,3 +151,9 @@ ralph.ts gives every iteration this section, so record here what you would other
 - Checks: bun test 81 pass; lint 0; typecheck 0; build 0; grep for the test throw → no output.
 - Playwright (dev, fresh DB_PATH=data/m4-test.db): step 2 empty state; New note → /notes/{uuid}, DB row title "" + EMPTY_DOC, second note listed first; share_token set via SQL → "Shared" badge; cookies cleared then New note → /sign-in; bob's /notes empty (NOTE-3); temporary throw → error.tsx, Try again → list back.
 - The other saveNoteAction/deleteNoteAction/share actions are left for later tasks; actions.ts only has createNoteAction.
+
+## 2026-10-12 – M4-editor-page (passes)
+- Files: app/notes/[id]/page.tsx (cached loadOwnedNote: requireUser → getNote → notFound(); generateMetadata "{title or Untitled} – TinyNotes"; "← All notes"), components/note-editor.tsx (title input + useEditor with immediatelyRender: false, class note-content, aria-label "Note content"), app/not-found.tsx (§7 generic 404), app/globals.css (.note-content block, D34).
+- Checks: bun test 81 pass; lint 0; typecheck 0; build 0.
+- Playwright (dev, DB_PATH=data/m4-test.db): New note → editor with empty title, placeholder/maxlength 200, page title "Untitled – TinyNotes"; Ctrl+B, "## ", "- ", "> " input rules work; title/content set via SQL → prefilled after reload, title rendered as text; signed out → /sign-in; bob on Ada's note, a missing uuid and /nope → 404 "Page not found" + "Go to TinyNotes" → /; no hydration warnings in the console.
+- Save/Delete, the message region and the SharePanel are left for M4-save, M4-delete and M5.
