@@ -34,11 +34,8 @@ export default async function NotePage({ params }: PageProps<"/notes/[id]">) {
   return (
     <>
       <AppHeader email={user.email} />
-      <main className="mx-auto w-full max-w-3xl px-4 py-8">
-        <Link
-          href="/notes"
-          className="text-sm text-zinc-600 hover:underline dark:text-zinc-400"
-        >
+      <main className="page-container py-8">
+        <Link href="/notes" className="text-sm text-zinc-600 hover:underline">
           ← All notes
         </Link>
         <NoteEditor

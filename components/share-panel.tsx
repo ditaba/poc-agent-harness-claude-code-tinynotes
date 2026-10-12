@@ -65,12 +65,12 @@ export function SharePanel({
   }
 
   const buttonClass =
-    "rounded border border-zinc-300 px-4 py-2 font-medium disabled:opacity-60 dark:border-zinc-700";
+    "rounded border border-zinc-300 px-4 py-2 font-medium disabled:opacity-60";
 
   return (
     <section
       aria-labelledby="sharing-heading"
-      className="mt-8 flex flex-col gap-3 border-t border-zinc-200 pt-6 dark:border-zinc-800"
+      className="mt-8 flex flex-col gap-3 border-t border-zinc-200 pt-6"
     >
       <h2 id="sharing-heading" className="text-lg font-semibold">
         Sharing
@@ -98,9 +98,9 @@ export function SharePanel({
             aria-label="Share link"
             value={shareUrl}
             onFocus={(event) => event.target.select()}
-            className="w-full rounded border border-zinc-300 px-3 py-2 font-mono text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="w-full rounded border border-zinc-300 px-3 py-2 font-mono text-sm"
           />
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-4">
             <button type="button" onClick={handleCopy} className={buttonClass}>
               {copied ? "Copied!" : "Copy link"}
             </button>

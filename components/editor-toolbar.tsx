@@ -139,7 +139,7 @@ export function EditorToolbar({ editor }: { editor: Editor }) {
               if (!enabled) return;
               button.command(editor.chain().focus()).run();
             }}
-            className="rounded border border-zinc-300 px-2 py-1 text-sm font-medium aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-pressed:bg-zinc-900 aria-pressed:text-white dark:border-zinc-700 dark:aria-pressed:bg-zinc-100 dark:aria-pressed:text-zinc-900"
+            className="rounded border border-zinc-300 px-2 py-1 text-sm font-medium aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-pressed:bg-zinc-900 aria-pressed:text-white"
           >
             {button.label}
           </button>

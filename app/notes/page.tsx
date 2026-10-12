@@ -16,33 +16,33 @@ export default async function NotesPage() {
   return (
     <>
       <AppHeader email={user.email} />
-      <main className="mx-auto w-full max-w-3xl px-4 py-8">
+      <main className="page-container py-8">
         <div className="flex items-center justify-between gap-4">
           <h1 className="text-2xl font-semibold">Your notes</h1>
           <NewNoteButton />
         </div>
         {notes.length === 0 ? (
-          <p className="mt-8 text-zinc-600 dark:text-zinc-400">
+          <p className="mt-8 text-zinc-600">
             No notes yet. Create your first one.
           </p>
         ) : (
-          <ul className="mt-6 divide-y divide-zinc-200 border-y border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+          <ul className="mt-6 divide-y divide-zinc-200 border-y border-zinc-200">
             {notes.map((note) => (
               <li key={note.id}>
                 <Link
                   href={`/notes/${note.id}`}
-                  className="flex items-center gap-3 px-2 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-900"
+                  className="flex items-center gap-3 px-2 py-3 hover:bg-zinc-50"
                 >
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium">
                       {note.title || "Untitled"}
                     </span>
-                    <span className="block text-sm text-zinc-600 dark:text-zinc-400">
+                    <span className="block text-sm text-zinc-600">
                       Updated {formatDateTime(note.updatedAt)}
                     </span>
                   </span>
                   {note.isShared && (
-                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100">
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">
                       Shared
                     </span>
                   )}

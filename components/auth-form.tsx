@@ -82,7 +82,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const hintId = `${id}-password-hint`;
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-sm flex-col justify-center gap-6 px-4">
+    <main className="page-container grid min-h-screen grid-cols-[minmax(0,24rem)] content-center justify-center gap-6">
       <h1 className="text-2xl font-semibold">{copy.heading}</h1>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
@@ -95,7 +95,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
             type="email"
             autoComplete="email"
             required
-            className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700"
+            className="rounded border border-zinc-300 px-3 py-2"
           />
         </div>
         <div className="flex flex-col gap-1">
@@ -116,10 +116,10 @@ export function AuthForm({ mode }: { mode: Mode }) {
               maxLength: 128,
               "aria-describedby": hintId,
             })}
-            className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700"
+            className="rounded border border-zinc-300 px-3 py-2"
           />
           {mode === "sign-up" && (
-            <p id={hintId} className="text-sm text-zinc-600 dark:text-zinc-400">
+            <p id={hintId} className="text-sm text-zinc-600">
               At least 8 characters.
             </p>
           )}
@@ -128,7 +128,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         <button
           type="submit"
           disabled={pending}
-          className="rounded bg-zinc-900 px-4 py-2 font-medium text-white disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
+          className="rounded bg-zinc-900 px-4 py-2 font-medium text-white disabled:opacity-60"
         >
           {pending ? copy.pending : copy.submit}
         </button>

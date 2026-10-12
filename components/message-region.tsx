@@ -24,10 +24,10 @@ export function errorMessage(error: ErrorCode): Message {
 export function MessageRegion({ message }: { message: Message | null }) {
   return (
     <div className="min-h-6 text-sm">
-      <p role="status" className="text-zinc-700 dark:text-zinc-300">
+      <p role="status" className="text-zinc-700">
         {message?.kind === "status" ? message.text : null}
       </p>
-      <p role="alert" className="text-red-700 dark:text-red-400">
+      <p role="alert" className="text-red-700">
         {message?.kind === "error" ? (
           <>
             {message.text}

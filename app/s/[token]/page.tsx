@@ -33,17 +33,19 @@ export default async function SharedNotePage({
   const note = await loadSharedNote(token);
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-8">
+    <main className="page-container py-8">
       <article>
-        <h1 className="text-3xl font-semibold">{note.title || "Untitled"}</h1>
-        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+        <h1 className="text-3xl font-semibold wrap-break-word">
+          {note.title || "Untitled"}
+        </h1>
+        <p className="mt-2 text-sm text-zinc-600">
           Last updated {formatDateTime(note.updatedAt)}
         </p>
         <div className="mt-6">
           <NoteContent content={note.content} />
         </div>
       </article>
-      <footer className="mt-12 border-t border-zinc-200 pt-4 text-sm text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
+      <footer className="mt-12 border-t border-zinc-200 pt-4 text-sm text-zinc-600">
         Shared with TinyNotes
       </footer>
     </main>

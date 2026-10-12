@@ -45,8 +45,7 @@ export function NoteEditor({
     immediatelyRender: false,
     editorProps: {
       attributes: {
-        class:
-          "note-content min-h-64 rounded border border-zinc-300 px-3 py-2 focus:outline-2 focus:outline-zinc-500 dark:border-zinc-700",
+        class: "note-content min-h-64 rounded border border-zinc-300 px-3 py-2",
         "aria-label": "Note content",
       },
     },
@@ -102,18 +101,18 @@ export function NoteEditor({
           setTitle(event.target.value);
           handleEdit();
         }}
-        className="w-full rounded border border-zinc-300 px-3 py-2 text-xl font-semibold dark:border-zinc-700 dark:bg-zinc-900"
+        className="w-full rounded border border-zinc-300 px-3 py-2 text-xl font-semibold"
       />
       <div className="flex flex-col gap-2">
         {editor && <EditorToolbar editor={editor} />}
         <EditorContent editor={editor} />
       </div>
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4">
         <button
           type="button"
           onClick={handleSave}
           disabled={!editor || pending}
-          className="rounded bg-zinc-900 px-4 py-2 font-medium text-white disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
+          className="rounded bg-zinc-900 px-4 py-2 font-medium text-white disabled:opacity-60"
         >
           {saving ? "Saving…" : "Save"}
         </button>
@@ -121,7 +120,7 @@ export function NoteEditor({
           type="button"
           onClick={handleDelete}
           disabled={pending}
-          className="rounded border border-red-700 px-4 py-2 font-medium text-red-700 disabled:opacity-60 dark:border-red-400 dark:text-red-400"
+          className="rounded border border-red-700 px-4 py-2 font-medium text-red-700 disabled:opacity-60"
         >
           {deleting ? "Deleting…" : "Delete"}
         </button>

@@ -743,7 +743,7 @@
       "bun run build",
       "Playwright MCP (bun run dev): browser_resize 375x800; on each page evaluate document.documentElement.scrollWidth <= window.innerWidth and take a screenshot; Tab through /notes/{id} and screenshot the focus indicators"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "M7-readme-cleanup",
