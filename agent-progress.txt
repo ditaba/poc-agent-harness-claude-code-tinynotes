@@ -6,7 +6,7 @@ Reusable learnings for later tasks, one line each: API quirks, verified commands
 ralph.ts gives every iteration this section, so record here what you would otherwise look up again.
 
 - Prettier config is `.prettierrc` with `prettier-plugin-tailwindcss` + `"tailwindStylesheet": "./app/globals.css"` (Tailwind v4 needs the stylesheet path for class sorting).
-- `bun run typecheck` can fail on stale `.next/types/validator.ts` from old routes; run `bun run build` (or delete `.next/types`) to regenerate, then re-check.
+- `bun run typecheck`/`next build` can fail on stale `.next/types/validator.ts` or `.next/dev/types/validator.ts` from deleted routes; `rm -rf .next` then rebuild.
 - Windows: Bash tool is Git Bash; use `> .ralph/check.log 2>&1; echo "exit=$?"` for checks. `bun test` with no test files exits 1 (expected until M1).
 - better-auth 1.7.7 CLI: `bunx --bun auth@1.7.7 generate --config <file> --output <file> --yes` (package is `auth`; `--bun` so the config can import `bun:sqlite`). `betterAuth({ database: new Database(path) })` needs no adapter option.
 - better-auth rate limiter works under `bun --bun next start` with only `rateLimit.customRules` (no `advanced.ipAddress`); it is off in `next dev`. Every request to the path counts (successes and 403s too), so restart the server before a clean 429 test.
@@ -42,3 +42,11 @@ ralph.ts gives every iteration this section, so record here what you would other
 - Checks: lint 0, typecheck 0, build 0, prettier on new files; bun test exit 1 (no test files, expected in M0).
 - SPEC R2/R10/§8 lines taken from the human's staged SPEC (every claim re-verified); committed via a temporary index from HEAD so other staged human changes stay out.
 - Spike code and data/spike.db are removed in M0-close. Playwright MCP not connected; task verify is curl-based.
+
+## 2026-10-12 – M0-close (passes)
+- Deleted: app/spike/page.tsx, app/api/auth/[...all]/route.ts, spike/auth.ts, data/spike.db (untracked, ignored). next.config.ts unchanged (R1/R10 needed no config).
+- SPEC §12 already marks R1, R2, R10 Verified (M0) with findings (committed in the spike tasks); no SPEC change.
+- Checks: spike-removed test ok; `git status --ignored | grep spike` empty after commit; bun install --frozen-lockfile 0; no ^/~ in package.json; format 0; lint 0; typecheck 0; `bun --bun next build` 0 (routes: /, /_not-found); bun test exit 1 (no test files, expected in M0).
+- Typecheck/build first failed on stale `.next/dev/types/validator.ts` referencing the deleted spike routes; `rm -rf .next` fixed it.
+- data/app.db (Oct 11, predates spike tasks) left in place; it is ignored and not spike-owned.
+- Committed via a temporary index from HEAD so staged human changes (prd.json, SPEC.md, etc.) stay out.
