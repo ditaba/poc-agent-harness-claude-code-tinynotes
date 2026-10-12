@@ -777,7 +777,7 @@
       "rm -rf data && bun run build && bun run start",
       "Playwright MCP: §11 steps 1–14"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "M7-checklist-15-24",

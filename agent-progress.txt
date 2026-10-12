@@ -221,3 +221,15 @@ ralph.ts gives every iteration this section, so record here what you would other
 - README.md already had the Setup section (Bun 1.3.14, bun install, copy .env.example to .env with a ≥32-char secret, bun run build && bun run start or bun run dev, §11 commands) above the existing notes, so it was left unchanged.
 - app/page.tsx already only redirects (NAV-1), so no default page content was left.
 - Checks: grep for the svg names in app components lib → no output; bun test 81 pass; lint 0; build 0; typecheck 0.
+
+## 2026-10-12 – M7-checklist-1-14 (passes)
+- Files: prd.json only (no code changes; nothing failed).
+- rm -rf data && bun run build (exit 0) && bun run start; Playwright MCP §11 steps 1–14 in order, production mode:
+  1 / → /sign-in. 2 AUTH-1 copy/attrs exact; ada signs up → /notes empty state. 3 "Creating account…" disabled. 4 Sign out → /sign-in, /notes → /sign-in.
+  5 duplicate → AUTH-3 message, email kept, password cleared. 6 wrong pw and nobody@ → "Invalid email or password.", pw cleared.
+  7 ADA@ slow → "Signing in…" disabled → /notes; /sign-in and / → /notes. 8 new note: empty title, Sharing, "This note is private.".
+  9 all 10 toggles flip aria-pressed, Undo/Redo, half-bold false, Bold aria-disabled in code block (no-op), roving tabindex ←/→ wrap, Home/End, Tab out.
+  10 "Saving…" with Save/Delete disabled → Saved; edit clears; save+type during pending → no Saved; save → Saved.
+  11 reload keeps title + all formatting; list shows Groceries with "Updated …". 12 "   " → Untitled listed above Groceries.
+  13 201-char title → NOTE-11 message, stays on edit, Saved replaces it (that note is now titled "Short"). 14 150 KB and +2 MB paste → NOTE-12 message, 0 POSTs.
+- Checks: bun test 81 pass; lint 0; typecheck 0; build 0. data/ kept for M7-checklist-15-24 (users: ada only; notes: Groceries shared-ready, "Short").
