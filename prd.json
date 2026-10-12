@@ -187,7 +187,7 @@
       "A valid doc using every D4 format → ok, with unknown attrs dropped from value.content (D26)"
     ],
     "verify": ["bun test lib/notes/validation", "bun run lint", "bun run typecheck"],
-    "passes": false
+    "passes": true
   },
   {
     "id": "M2-render",

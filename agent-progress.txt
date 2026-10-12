@@ -13,6 +13,7 @@ ralph.ts gives every iteration this section, so record here what you would other
 - Stop a server on port 3000 from Git Bash: `powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort 3000 -State Listen | % { Stop-Process -Id \$_.OwningProcess -Force }"`.
 - `bun:sqlite` `db.run(sql)` executes a multi-statement .sql file (no params); DDL inside `db.transaction()` rolls back fully on error (verified in lib/migrate.test.ts).
 - Bun auto-loads `.env` for `bun scripts/*.ts`, so scripts/migrate.ts reads env via process.env with no dotenv; insertTestUser(db, email?) from lib/testing/db.ts is the user fixture for DB tests.
+- TipTap 3.31 server validation: `Node.fromJSON(getSchema(editorExtensions), json)` throws RangeError on unknown node/mark types and silently drops unknown attrs; `toJSON()` adds default attrs (e.g. heading level), so normalized JSON can be larger than input. Bash heredocs with nested quotes can break on Windows Git Bash; use the Write tool for new files.
 
 ## 2026-10-12 – M0-deps (passes)
 - Files: package.json (all §4 pins, packageManager bun@1.3.14, M0 scripts without db:migrate), bun.lock, .prettierrc, .prettierignore (`*.md`, `.claude/`), app/page.tsx + next.config.ts (format/class sort only).
@@ -78,3 +79,10 @@ ralph.ts gives every iteration this section, so record here what you would other
 - Added: lib/share-token.ts (SHARE_TOKEN_PATTERN, generateShareToken via crypto.getRandomValues(24) → Buffer base64url, isShareTokenFormat, buildShareUrl), lib/share-token.test.ts.
 - buildShareUrl reads process.env.BETTER_AUTH_URL at call time (default param, `?? ""` fallback).
 - Checks: bun test lib/share-token 9 pass; bun test 18 pass; lint 0; typecheck 0; build 0.
+
+## 2026-10-12 – M2-validation (passes)
+- Added: lib/notes/limits.ts (no imports), lib/notes/editor-extensions.ts (editorExtensions, EMPTY_DOC), lib/notes/validation.ts (validateNoteInput), lib/notes/validation.test.ts.
+- Schema is built once at module load with getSchema(editorExtensions); JSON.parse/fromJSON/check errors all map to INVALID_CONTENT.
+- Size boundary test builds text from 2-byte "é" so the normalized doc is exactly 102 400 / 102 401 bytes while char count stays below the limit; growth test uses 5 000 bare `{"type":"heading"}` nodes.
+- Checks: bun test lib/notes/validation 13 pass; bun test 31 pass; lint 0; typecheck 0 (fixed `as const` on expected error object); build 0.
+- prd.json passes=true committed on top of HEAD's prd.json via a temporary index; staged human changes left staged.
