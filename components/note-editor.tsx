@@ -5,7 +5,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { callAction } from "@/lib/call-action";
-import { ERROR_MESSAGES, type ErrorCode } from "@/lib/errors";
+import { ERROR_MESSAGES } from "@/lib/errors";
 import { deleteNoteAction, saveNoteAction } from "@/lib/notes/actions";
 import { editorExtensions } from "@/lib/notes/editor-extensions";
 import {
@@ -13,18 +13,7 @@ import {
   TITLE_MAX_LENGTH,
   utf8ByteLength,
 } from "@/lib/notes/limits";
-import { MessageRegion, type Message } from "./message-region";
-
-function errorMessage(error: ErrorCode): Message {
-  return {
-    kind: "error",
-    text: ERROR_MESSAGES[error],
-    link:
-      error === "UNAUTHENTICATED"
-        ? { href: "/sign-in", label: "Sign in" }
-        : undefined,
-  };
-}
+import { errorMessage, MessageRegion, type Message } from "./message-region";
 
 export function NoteEditor({
   note,

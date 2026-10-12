@@ -655,7 +655,7 @@
       "Playwright MCP (bun run dev): §11 step 8 (Sharing section), step 15, the two-tab part of step 18, and step 19's new-URL check",
       "Clipboard, with Playwright MCP's run-code tool: allow it with `await page.context().grantPermissions([\"clipboard-read\", \"clipboard-write\"])` and read it back with `navigator.clipboard.readText()`; force a failure with `await page.evaluate(() => { navigator.clipboard.writeText = () => Promise.reject(new Error(\"denied\")) })`"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "M5-public-page",

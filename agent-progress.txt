@@ -26,6 +26,7 @@ ralph.ts gives every iteration this section, so record here what you would other
 - Tailwind 4 `@theme inline` vars (e.g. `--font-mono`) are not emitted as CSS variables; in plain CSS use `var(--font-geist-mono)` and `var(--color-zinc-*)` (those exist).
 - Playwright paste into TipTap: `el.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true }))` with a `DataTransfer` holding text/plain (works for 2 MB); count POSTs with `p.on("request")` to prove no action call.
 - Playwright: test a Server Action with a foreign id by rewriting the POST body in `page.route` (`route.continue({ postData: body.replace(ownId, otherId) })`); replaying a captured action POST via `context.request` returns the HTML 404 page instead.
+- Playwright clipboard: `ctx.grantPermissions(["clipboard-read","clipboard-write"], { origin })` then `navigator.clipboard.readText()`; read button labels with `locator(":has-text('Copied!')").waitFor()`, not innerText right after click (the write is async).
 
 ## 2026-10-12 – M0-deps (passes)
 - Files: package.json (all §4 pins, packageManager bun@1.3.14, M0 scripts without db:migrate), bun.lock, .prettierrc, .prettierignore (`*.md`, `.claude/`), app/page.tsx + next.config.ts (format/class sort only).
@@ -182,3 +183,11 @@ ralph.ts gives every iteration this section, so record here what you would other
 - Checks: bun test lib/call-action lib/format-date 4 pass; bun test 81 pass; lint 0; build 0; typecheck 0.
 - Playwright (dev, DB_PATH=data/m4-test.db, deleted afterwards): step 2 empty state; step 8 (no Sharing); step 10 slow incl. the D38 race; Ctrl+B → <strong>; steps 11–14 (14: 0 POSTs); step 21 NOTE-3 + Bob gets 404 on Ada's note; step 22 slow: Cancel keeps the note, OK → "Deleting…" with both buttons disabled, then /notes without it, note URL → 404 (share-link check deferred to M5); step 23 Sign in link + save after re-sign-in; step 24 server stopped → INTERNAL, "Save" enabled.
 - Failed delete (aborted POST) → "Something went wrong. Please try again." in the editor region, buttons re-enabled. NOT_FOUND: Bob's delete POST rewritten to Ada's id and to an unknown id → "This note no longer exists.", Ada's note still there.
+
+## 2026-10-12 – M5-share-panel (passes)
+- Files: lib/notes/actions.ts (enableShareAction/disableShareAction: UNAUTHENTICATED / NOT_FOUND / INTERNAL, revalidatePath /notes + note path), components/share-panel.tsx (new), app/notes/[id]/page.tsx (mounts SharePanel with buildShareUrl(shareToken)), components/message-region.tsx (errorMessage() moved here from note-editor.tsx so both panels share it).
+- SharePanel: shareUrl state from initialShareUrl only (SHARE-7); one `pending` ("enable"|"disable") disables the action button, so a double-click sends 1 POST (SHARE-6); "Copied!" reset by a 2 s useEffect timer; copy success clears the region, success of enable/disable leaves it empty.
+- Checks: bun test 81 pass; lint 0; build 0; typecheck 0.
+- Playwright (dev, DB_PATH=data/m5-test.db, deleted afterwards): step 8 Sharing section with empty status+alert; step 15 slow ("Creating link…", disabled, 1 POST on dblclick), link + readonly input, /notes "Shared" badge; clipboard holds the URL, "Copied!" ~2 s, forced failure → copy-failure text in the Sharing alert; step 18 two tabs: B disables, A saves (revalidation) and still shows the link, A slow "Disabling…" → private state, no error; step 19 re-enable gives a new URL.
+- D32: disable+enable on Groceries kept "Second" above it with unchanged "Updated" times. Errors in the Sharing alert: aborted POST → INTERNAL (button back to "Disable link"), id rewritten to unknown uuid → NOT_FOUND (link kept), cleared cookies → UNAUTHENTICATED with Sign in link.
+- Old URL 404 seen, but /s/[token] doesn't exist yet; the real PUB-2 check is in M5-public-page.

@@ -4,9 +4,11 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { AppHeader } from "@/components/app-header";
 import { NoteEditor } from "@/components/note-editor";
+import { SharePanel } from "@/components/share-panel";
 import { db } from "@/lib/db";
 import { getNote } from "@/lib/notes/repo";
 import { requireUser } from "@/lib/session";
+import { buildShareUrl } from "@/lib/share-token";
 
 // Shared by generateMetadata and the page, so the note is read once per request.
 const loadOwnedNote = cache(async (id: string) => {
@@ -41,6 +43,12 @@ export default async function NotePage({ params }: PageProps<"/notes/[id]">) {
         </Link>
         <NoteEditor
           note={{ id: note.id, title: note.title, content: note.content }}
+        />
+        <SharePanel
+          noteId={note.id}
+          initialShareUrl={
+            note.shareToken ? buildShareUrl(note.shareToken) : null
+          }
         />
       </main>
     </>
