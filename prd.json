@@ -130,7 +130,7 @@
       "A migration with bad SQL (temp dir) throws, is rolled back and is not recorded in _migrations (§11)"
     ],
     "verify": ["bun test lib/migrate", "bun run lint", "bun run typecheck"],
-    "passes": false
+    "passes": true
   },
   {
     "id": "M1-db-cli",
