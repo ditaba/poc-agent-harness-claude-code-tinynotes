@@ -368,7 +368,7 @@
       "bun run build",
       "Playwright MCP (bun run dev): §11 steps 2 and 3; sign out by clearing cookies (CLAUDE.md, Playwright sign-out) in place of step 4; then step 5 and the MSG-2 check"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "M3-sign-in",
