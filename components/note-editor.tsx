@@ -13,6 +13,7 @@ import {
   TITLE_MAX_LENGTH,
   utf8ByteLength,
 } from "@/lib/notes/limits";
+import { EditorToolbar } from "./editor-toolbar";
 import { errorMessage, MessageRegion, type Message } from "./message-region";
 
 export function NoteEditor({
@@ -103,7 +104,10 @@ export function NoteEditor({
         }}
         className="w-full rounded border border-zinc-300 px-3 py-2 text-xl font-semibold dark:border-zinc-700 dark:bg-zinc-900"
       />
-      <EditorContent editor={editor} />
+      <div className="flex flex-col gap-2">
+        {editor && <EditorToolbar editor={editor} />}
+        <EditorContent editor={editor} />
+      </div>
       <div className="flex items-center gap-4">
         <button
           type="button"
