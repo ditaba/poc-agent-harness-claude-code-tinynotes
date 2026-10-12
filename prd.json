@@ -437,7 +437,7 @@
       "Playwright MCP (bun run dev): §11 steps 1–7 and the MSG-2 check on an auth form",
       "Playwright MCP (bun run build && bun run start): §11 step 27 and the cookie check from step 26"
     ],
-    "passes": false
+    "passes": true
   },
   {
     "id": "M4-lib",

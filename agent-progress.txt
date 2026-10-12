@@ -129,3 +129,9 @@ ralph.ts gives every iteration this section, so record here what you would other
 - Playwright (bun run dev): AUTH-6 heading/labels/button/"No account yet? Create one" → /sign-up, title; step 6 wrong password and nobody@example.com → "Invalid email or password.", email kept, password cleared (D47); step 7 slow ADA@example.com → "Signing in…" disabled → /notes (AUTH-7, AUTH-9, AUTH-13; Ada@Example.com sign-up was a duplicate of the existing lowercased user); /sign-in signed in → /notes (AUTH-11). `/` → /notes is still the scaffold (NAV-1, later M3 task).
 - Playwright (build + start): step 27 six wrong sign-ins → 5× AUTH-8 copy, sixth "Too many attempts. Please wait a minute and try again."
 - Checks: bun test 77 pass; lint 0; typecheck 0; build 0.
+
+## 2026-10-12 – M3-notes-shell (passes)
+- Files: app/page.tsx (NAV-1 redirect via getCurrentUser), app/layout.tsx (default title "TinyNotes", scaffold description removed), app/notes/page.tsx (stub: requireUser + AppHeader + "Your notes", title "Your notes – TinyNotes"), components/app-header.tsx, components/sign-out-button.tsx (authClient.signOut; ok → router.push("/sign-in") + refresh and stays disabled; error/throw → re-enabled, no message, D48).
+- Playwright (bun run dev, fresh DB): steps 1–7 pass (slow sign-up "Creating account…", header link/email/Sign out, sign-out → /sign-in, /notes → /sign-in, AUTH-3, AUTH-8 ×2, slow "Signing in…", AUTH-11, `/` → /notes); MSG-2 error kept while typing, cleared on submit; aborted /api/auth/** sign-out → stays on /notes, button re-enabled, no message; slow sign-out button disabled; 404 page title "TinyNotes".
+- Playwright (build + start, fresh DB): session cookie better-auth.session_token httpOnly=true sameSite=Lax; step 27 sixth wrong sign-in → "Too many attempts…".
+- Checks: bun test 77 pass (auth-errors 16); lint 0; typecheck 0; build 0; lib/auth.ts has no trustedOrigins. M3 Done-when met.
