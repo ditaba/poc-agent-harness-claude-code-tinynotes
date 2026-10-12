@@ -73,3 +73,8 @@ ralph.ts gives every iteration this section, so record here what you would other
 - Checks: bun test lib/env lib/migrate 7 pass; bun test 9 pass; createTestDb/insertTestUser → { n: 1 }; fresh db:migrate creates all 6 tables, 2nd run applies nothing; build without .env exit 1 naming BETTER_AUTH_SECRET; build with data/ deleted exit 0; lint 0; typecheck 0.
 - Old spike data/ moved to .ralph/data-backup-spike (gitignored) instead of deleted.
 - Formatted only owned files; prd.json passes=true committed on top of HEAD's prd.json via a temporary index; staged human changes left staged.
+
+## 2026-10-12 – M2-share-token (passes)
+- Added: lib/share-token.ts (SHARE_TOKEN_PATTERN, generateShareToken via crypto.getRandomValues(24) → Buffer base64url, isShareTokenFormat, buildShareUrl), lib/share-token.test.ts.
+- buildShareUrl reads process.env.BETTER_AUTH_URL at call time (default param, `?? ""` fallback).
+- Checks: bun test lib/share-token 9 pass; bun test 18 pass; lint 0; typecheck 0; build 0.
