@@ -244,3 +244,11 @@ ralph.ts gives every iteration this section, so record here what you would other
   22 Cancel keeps note; OK slow → "Deleting…" + Save disabled → /notes without Groceries; link 404. 23 sign out in tab 2 → UNAUTHENTICATED message, Sign in link target=_blank; sign in there → Save works.
   24 server stopped → "Something went wrong. Please try again.", button "Save" enabled; restarted, Save works.
 - Checks: bun test 81 pass; lint 0; typecheck 0; build 0. data/ now: ada + bob; Ada's note "Short".
+
+## 2026-10-12 – M7-acceptance (passes)
+- Files: next.config.ts (comment reworded so the §10 origins grep is clean; it only matched a comment, no config), prd.json, agent-progress.txt.
+- §10 audit: all SQL in lib/notes/repo.ts, lib/migrate.ts, lib/testing/db.ts uses ? params (only db.run of migration files/PRAGMAs has no params); only components/note-content.tsx has dangerouslySetInnerHTML; no trustedOrigins/allowedOrigins; package.json deps = §4, no ^/~.
+- 25: .env moved aside → bun run build exit 1, "BETTER_AUTH_SECRET is missing…"; .env restored.
+- 26: rm -rf data && bun run build (exit 0) && bun run start; Playwright MCP: step 2 slow "Creating account…" disabled → empty /notes; 8 new note empty title + "This note is private."; 10 slow "Saving…" Save+Delete disabled → "Saved", typing hides it, typing during save → no "Saved", save again → "Saved"; 16 share link in new context 200, no controls, no email. Cookie better-auth.session_token httpOnly, sameSite Lax.
+- 27: six wrong sign-ins → 401×5, sixth 429 "Too many attempts. Please wait a minute and try again."
+- Checks: bun test 81 pass; lint 0; typecheck 0; build 0. M7 Done when met (steps 1–27 across the three M7 checklist tasks).

@@ -817,6 +817,6 @@
       "grep -rnE 'trustedOrigins|allowedOrigins' lib app next.config.ts  # expect no output",
       "§11 step 25 in the shell, then step 26 (rm -rf data && bun run build && bun run start) and step 27 with Playwright MCP"
     ],
-    "passes": false
+    "passes": true
   }
 ]

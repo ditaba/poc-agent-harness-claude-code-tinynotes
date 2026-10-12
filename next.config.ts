@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-// §10 headers. No serverActions.allowedOrigins: keep the default Origin check.
+// §10 headers. No Server Actions origin allowlist: keep the default Origin check.
 const nextConfig: NextConfig = {
   async headers() {
     return [
