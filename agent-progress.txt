@@ -13,6 +13,7 @@ ralph.ts gives every iteration this section, so record here what you would other
 - Stop a server on port 3000 from Git Bash: `powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort 3000 -State Listen | % { Stop-Process -Id \$_.OwningProcess -Force }"`.
 - `bun:sqlite` `db.run(sql)` executes a multi-statement .sql file (no params); DDL inside `db.transaction()` rolls back fully on error (verified in lib/migrate.test.ts).
 - Bun auto-loads `.env` for `bun scripts/*.ts`, so scripts/migrate.ts reads env via process.env with no dotenv; insertTestUser(db, email?) from lib/testing/db.ts is the user fixture for DB tests.
+- `@tiptap/static-renderer` 3.31 html-string output: `<br/>` self-closing, `<ol>` without `start` attr when absent, codeBlock emits `<pre><code class="language-…">`.
 - TipTap 3.31 server validation: `Node.fromJSON(getSchema(editorExtensions), json)` throws RangeError on unknown node/mark types and silently drops unknown attrs; `toJSON()` adds default attrs (e.g. heading level), so normalized JSON can be larger than input. Bash heredocs with nested quotes can break on Windows Git Bash; use the Write tool for new files.
 
 ## 2026-10-12 – M0-deps (passes)
@@ -86,3 +87,9 @@ ralph.ts gives every iteration this section, so record here what you would other
 - Size boundary test builds text from 2-byte "é" so the normalized doc is exactly 102 400 / 102 401 bytes while char count stays below the limit; growth test uses 5 000 bare `{"type":"heading"}` nodes.
 - Checks: bun test lib/notes/validation 13 pass; bun test 31 pass; lint 0; typecheck 0 (fixed `as const` on expected error object); build 0.
 - prd.json passes=true committed on top of HEAD's prd.json via a temporary index; staged human changes left staged.
+
+## 2026-10-12 – M2-render (passes)
+- Added: lib/notes/render.ts (renderNoteHtml via renderToHTMLString from @tiptap/static-renderer/pm/html-string), lib/notes/render.test.ts.
+- Static renderer escapes text (&lt;script&gt;) and attrs (codeBlock language → class="language-&quot;&gt;&lt;img…"); no R4 block needed.
+- Tests: one case per D4 node/mark, every-format doc yields exactly the PUB-4 tag set, two escaping cases.
+- Checks: bun test lib/notes/render 15 pass; bun test 46 pass; lint 0; typecheck 0; build 0.
