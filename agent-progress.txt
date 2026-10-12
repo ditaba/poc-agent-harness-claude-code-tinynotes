@@ -50,3 +50,10 @@ ralph.ts gives every iteration this section, so record here what you would other
 - Typecheck/build first failed on stale `.next/dev/types/validator.ts` referencing the deleted spike routes; `rm -rf .next` fixed it.
 - data/app.db (Oct 11, predates spike tasks) left in place; it is ignored and not spike-owned.
 - Committed via a temporary index from HEAD so staged human changes (prd.json, SPEC.md, etc.) stay out.
+
+## 2026-10-12 – M1-env (passes)
+- Added: lib/env.ts (checkEnv, MIN_SECRET_LENGTH=32), lib/env.test.ts (4 §11 cases).
+- Each problem message names the variable and says "Copy .env.example to .env and set it."; empty string counts as missing.
+- Checks: bun test lib/env 4 pass; lint 0; typecheck 0; build 0.
+- Formatted only the two new files (bun run format would touch unrelated human-modified files).
+- prd.json passes=true committed on top of HEAD's prd.json via a temporary index; staged human changes left staged.
