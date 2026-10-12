@@ -121,7 +121,14 @@
     "id": "M1-migrate",
     "milestone": "M1",
     "description": "lib/open-database.ts, the migration runner lib/migrate.ts and both SQL migrations, with migrate tests",
-    "spec": ["§8", "§9 lib/open-database.ts", "§9 lib/migrate.ts", "§11 lib/migrate.test.ts", "D27", "D45"],
+    "spec": [
+      "§8",
+      "§9 lib/open-database.ts",
+      "§9 lib/migrate.ts",
+      "§11 lib/migrate.test.ts",
+      "D27",
+      "D45"
+    ],
     "dependsOn": ["M0-close"],
     "acceptance": [
       "openDatabase(path) sets foreign_keys=ON and busy_timeout=5000, and journal_mode=WAL except for \":memory:\"; importing lib/open-database.ts opens nothing (§8, D45)",
@@ -136,7 +143,17 @@
     "id": "M1-db-cli",
     "milestone": "M1",
     "description": "lib/db.ts singleton, scripts/migrate.ts, db:migrate wiring in package.json, and lib/testing/db.ts helpers; runs the M1 Done-when checks",
-    "spec": ["§4 scripts", "§9 lib/db.ts", "§9 scripts/migrate.ts", "§9 lib/testing/db.ts", "D29", "D36", "D45", "R7", "§14 M1 Done when"],
+    "spec": [
+      "§4 scripts",
+      "§9 lib/db.ts",
+      "§9 scripts/migrate.ts",
+      "§9 lib/testing/db.ts",
+      "D29",
+      "D36",
+      "D45",
+      "R7",
+      "§14 M1 Done when"
+    ],
     "dependsOn": ["M1-env", "M1-migrate"],
     "acceptance": [
       "package.json gets the db:migrate script, and dev/build/start run `bun run db:migrate &&` first, exactly as §4",
@@ -176,7 +193,16 @@
     "id": "M2-validation",
     "milestone": "M2",
     "description": "lib/notes/limits.ts, lib/notes/editor-extensions.ts and lib/notes/validation.ts with validation tests",
-    "spec": ["§9 lib/notes/limits.ts", "§9 lib/notes/editor-extensions.ts", "§9 lib/notes/validation.ts", "§11 lib/notes/validation.test.ts", "D4", "D18", "D26", "D40"],
+    "spec": [
+      "§9 lib/notes/limits.ts",
+      "§9 lib/notes/editor-extensions.ts",
+      "§9 lib/notes/validation.ts",
+      "§11 lib/notes/validation.test.ts",
+      "D4",
+      "D18",
+      "D26",
+      "D40"
+    ],
     "dependsOn": ["M1-db-cli"],
     "acceptance": [
       "lib/notes/limits.ts has no imports and exports TITLE_MAX_LENGTH, CONTENT_MAX_BYTES and utf8ByteLength exactly as §9",
@@ -186,14 +212,24 @@
       "\"not json\", root `paragraph`, an `image` node and a `link` mark each → INVALID_CONTENT (D26)",
       "A valid doc using every D4 format → ok, with unknown attrs dropped from value.content (D26)"
     ],
-    "verify": ["bun test lib/notes/validation", "bun run lint", "bun run typecheck"],
+    "verify": [
+      "bun test lib/notes/validation",
+      "bun run lint",
+      "bun run typecheck"
+    ],
     "passes": true
   },
   {
     "id": "M2-render",
     "milestone": "M2",
     "description": "lib/notes/render.ts renderNoteHtml with escaping tests",
-    "spec": ["§9 lib/notes/render.ts", "§11 lib/notes/render.test.ts", "D14", "R4", "PUB-4"],
+    "spec": [
+      "§9 lib/notes/render.ts",
+      "§11 lib/notes/render.test.ts",
+      "D14",
+      "R4",
+      "PUB-4"
+    ],
     "dependsOn": ["M2-validation"],
     "acceptance": [
       "Each D4 node and mark renders its expected tag from the PUB-4 list",
@@ -202,14 +238,29 @@
       "A doc using every format renders no tags outside the PUB-4 list",
       "If the static renderer fails to escape, mark the task blocked and don't add @tiptap/html (R4; CLAUDE.md, Blocked tasks)"
     ],
-    "verify": ["bun test lib/notes/render", "bun run lint", "bun run typecheck"],
+    "verify": [
+      "bun test lib/notes/render",
+      "bun run lint",
+      "bun run typecheck"
+    ],
     "passes": false
   },
   {
     "id": "M2-repo",
     "milestone": "M2",
     "description": "lib/notes/repo.ts raw-SQL functions with repo tests; runs the M2 Done-when checks",
-    "spec": ["§9 lib/notes/repo.ts", "§11 lib/notes/repo.test.ts", "D24", "D27", "D32", "D40", "D42", "NOTE-16", "SHARE-6", "§14 M2 Done when"],
+    "spec": [
+      "§9 lib/notes/repo.ts",
+      "§11 lib/notes/repo.test.ts",
+      "D24",
+      "D27",
+      "D32",
+      "D40",
+      "D42",
+      "NOTE-16",
+      "SHARE-6",
+      "§14 M2 Done when"
+    ],
     "dependsOn": ["M2-share-token", "M2-validation", "M2-render"],
     "acceptance": [
       "createNote → title \"\", content EMPTY_DOC, crypto.randomUUID() id, created_at = updated_at = now (D27)",
@@ -222,14 +273,30 @@
       "Share toggles don't change updated_at (D32); every query uses ? params, and owner queries include `AND user_id = ?`",
       "M2 Done when: `bun test lib/share-token lib/notes` passes, and typecheck and lint are clean"
     ],
-    "verify": ["bun test lib/share-token lib/notes", "bun run lint", "bun run typecheck"],
+    "verify": [
+      "bun test lib/share-token lib/notes",
+      "bun run lint",
+      "bun run typecheck"
+    ],
     "passes": false
   },
   {
     "id": "M3-auth-server",
     "milestone": "M3",
     "description": "lib/auth.ts, the /api/auth/[...all] handler and lib/session.ts (getCurrentUser, requireUser)",
-    "spec": ["§9 lib/auth.ts", "§9 app/api/auth/[...all]/route.ts", "§9 lib/session.ts", "D9", "D10", "D11", "D25", "D29", "D44", "R10", "§10"],
+    "spec": [
+      "§9 lib/auth.ts",
+      "§9 app/api/auth/[...all]/route.ts",
+      "§9 lib/session.ts",
+      "D9",
+      "D10",
+      "D11",
+      "D25",
+      "D29",
+      "D44",
+      "R10",
+      "§10"
+    ],
     "dependsOn": ["M2-repo"],
     "acceptance": [
       "auth uses database: db (D29), emailAndPassword { enabled, autoSignIn }, the D44 customRules and any option recorded in SPEC §12 R10; there is no trustedOrigins (§10)",
@@ -249,7 +316,16 @@
     "id": "M3-auth-errors",
     "milestone": "M3",
     "description": "lib/auth-errors.ts authErrorMessage with its unit tests",
-    "spec": ["§7 Auth errors", "§9 lib/auth-errors.ts", "§11 lib/auth-errors.test.ts", "AUTH-3", "AUTH-4", "AUTH-5", "AUTH-8", "AUTH-14"],
+    "spec": [
+      "§7 Auth errors",
+      "§9 lib/auth-errors.ts",
+      "§11 lib/auth-errors.test.ts",
+      "AUTH-3",
+      "AUTH-4",
+      "AUTH-5",
+      "AUTH-8",
+      "AUTH-14"
+    ],
     "dependsOn": ["M2-repo"],
     "acceptance": [
       "Every row of the §7 auth-error table maps to its exact copy, including both duplicate-email codes and status 429 (AUTH-3, AUTH-4, AUTH-5, AUTH-8, AUTH-14)",
@@ -263,7 +339,19 @@
     "id": "M3-sign-up",
     "milestone": "M3",
     "description": "lib/auth-client.ts, components/message-region.tsx, components/auth-form.tsx and the /sign-up page",
-    "spec": ["§5", "§9 Components AuthForm", "MSG-1", "MSG-2", "AUTH-1..AUTH-5", "AUTH-9", "AUTH-11", "AUTH-14", "D9", "D30", "D47"],
+    "spec": [
+      "§5",
+      "§9 Components AuthForm",
+      "MSG-1",
+      "MSG-2",
+      "AUTH-1..AUTH-5",
+      "AUTH-9",
+      "AUTH-11",
+      "AUTH-14",
+      "D9",
+      "D30",
+      "D47"
+    ],
     "dependsOn": ["M3-auth-server", "M3-auth-errors"],
     "acceptance": [
       "/sign-up shows the AUTH-1 heading, fields, hint, button and \"Sign in\" link to /sign-in; its title is \"Create account – TinyNotes\" (§5)",
@@ -286,7 +374,20 @@
     "id": "M3-sign-in",
     "milestone": "M3",
     "description": "The /sign-in page, rendering AuthForm in sign-in mode",
-    "spec": ["§5", "§9 Components AuthForm", "AUTH-6", "AUTH-7", "AUTH-8", "AUTH-9", "AUTH-11", "AUTH-13", "AUTH-14", "D30", "D44", "D47"],
+    "spec": [
+      "§5",
+      "§9 Components AuthForm",
+      "AUTH-6",
+      "AUTH-7",
+      "AUTH-8",
+      "AUTH-9",
+      "AUTH-11",
+      "AUTH-13",
+      "AUTH-14",
+      "D30",
+      "D44",
+      "D47"
+    ],
     "dependsOn": ["M3-sign-up"],
     "acceptance": [
       "/sign-in shows the AUTH-6 heading, fields, button and \"Create one\" link to /sign-up; its title is \"Sign in – TinyNotes\" (§5)",
@@ -309,7 +410,17 @@
     "id": "M3-notes-shell",
     "milestone": "M3",
     "description": "app/page.tsx redirect, default title in app/layout.tsx, stub app/notes/page.tsx, components/app-header.tsx and components/sign-out-button.tsx; runs the M3 Done-when checks",
-    "spec": ["§5", "NAV-1", "AUTH-10", "AUTH-12", "D22", "D25", "D48", "§10", "§14 M3 Done when"],
+    "spec": [
+      "§5",
+      "NAV-1",
+      "AUTH-10",
+      "AUTH-12",
+      "D22",
+      "D25",
+      "D48",
+      "§10",
+      "§14 M3 Done when"
+    ],
     "dependsOn": ["M3-sign-in"],
     "acceptance": [
       "Signed out, / → /sign-in; signed in, / → /notes (NAV-1, D22)",
@@ -332,21 +443,43 @@
     "id": "M4-lib",
     "milestone": "M4",
     "description": "lib/errors.ts, lib/call-action.ts and lib/format-date.ts with their unit tests",
-    "spec": ["§7 Server Action result", "§9 lib/call-action.ts", "§9 lib/format-date.ts", "§11 lib/call-action.test.ts", "§11 lib/format-date.test.ts", "D33", "D39"],
+    "spec": [
+      "§7 Server Action result",
+      "§9 lib/call-action.ts",
+      "§9 lib/format-date.ts",
+      "§11 lib/call-action.test.ts",
+      "§11 lib/format-date.test.ts",
+      "D33",
+      "D39"
+    ],
     "dependsOn": ["M3-notes-shell"],
     "acceptance": [
       "ErrorCode, ActionResult and ERROR_MESSAGES match §7, with the exact copy for every code",
       "callAction returns resolved { ok: true } and { ok: false } results unchanged; a rejected call → console.error + { ok: false, error: \"INTERNAL\" } (D39)",
       "formatDateTime(Date.UTC(2026, 9, 10, 15, 45), \"UTC\") → \"Oct 10, 2026, 3:45 PM\" (D33)"
     ],
-    "verify": ["bun test lib/call-action lib/format-date", "bun run lint", "bun run typecheck"],
+    "verify": [
+      "bun test lib/call-action lib/format-date",
+      "bun run lint",
+      "bun run typecheck"
+    ],
     "passes": false
   },
   {
     "id": "M4-notes-list",
     "milestone": "M4",
     "description": "createNoteAction, components/new-note-button.tsx, the full app/notes/page.tsx list and app/error.tsx",
-    "spec": ["§9 lib/notes/actions.ts createNoteAction", "§7 Page-level errors", "NOTE-1", "NOTE-2", "NOTE-3", "NOTE-4", "D3", "D17", "D33"],
+    "spec": [
+      "§9 lib/notes/actions.ts createNoteAction",
+      "§7 Page-level errors",
+      "NOTE-1",
+      "NOTE-2",
+      "NOTE-3",
+      "NOTE-4",
+      "D3",
+      "D17",
+      "D33"
+    ],
     "dependsOn": ["M4-lib"],
     "acceptance": [
       "/notes lists the user's notes by updated_at desc; each row links to /notes/{id} and shows the title or \"Untitled\", \"Updated {date}\" and a \"Shared\" badge when isShared (NOTE-1; check the badge by setting share_token with SQL, end-to-end in M5)",
@@ -369,7 +502,18 @@
     "id": "M4-editor-page",
     "milestone": "M4",
     "description": "app/notes/[id]/page.tsx, components/note-editor.tsx (title + EditorContent), app/not-found.tsx and the .note-content CSS",
-    "spec": ["§9 Components NoteEditor", "§9 Rendering and data flow", "§7 Page-level errors", "NOTE-5", "NOTE-15", "AUTH-12", "D15", "D24", "D34", "R3"],
+    "spec": [
+      "§9 Components NoteEditor",
+      "§9 Rendering and data flow",
+      "§7 Page-level errors",
+      "NOTE-5",
+      "NOTE-15",
+      "AUTH-12",
+      "D15",
+      "D24",
+      "D34",
+      "R3"
+    ],
     "dependsOn": ["M4-notes-list"],
     "acceptance": [
       "The owner opening /notes/{id} sees \"← All notes\" → /notes, the title input (aria-label \"Title\", placeholder \"Untitled\", maxlength 200) prefilled, and the editor (aria-label \"Note content\") prefilled with the saved content; the page title is \"{title or Untitled} – TinyNotes\" (NOTE-5, §5)",
@@ -390,7 +534,17 @@
     "id": "M4-save",
     "milestone": "M4",
     "description": "saveNoteAction and the Save flow in components/note-editor.tsx (editor message region, edit counter)",
-    "spec": ["§9 lib/notes/actions.ts saveNoteAction", "§9 Components NoteEditor", "§7 Server Action result", "NOTE-7..NOTE-11", "NOTE-13", "MSG-1", "MSG-2", "D37", "D38"],
+    "spec": [
+      "§9 lib/notes/actions.ts saveNoteAction",
+      "§9 Components NoteEditor",
+      "§7 Server Action result",
+      "NOTE-7..NOTE-11",
+      "NOTE-13",
+      "MSG-1",
+      "MSG-2",
+      "D37",
+      "D38"
+    ],
     "dependsOn": ["M4-editor-page"],
     "acceptance": [
       "Click Save → the trimmed title and the content as of the click are saved through callAction(), and updated_at = now; while pending, \"Save\" reads \"Saving…\" and is disabled, but the title and editor stay editable (NOTE-7, D38)",
@@ -413,7 +567,15 @@
     "id": "M4-save-errors",
     "milestone": "M4",
     "description": "Save failure paths in components/note-editor.tsx: client-side size check, session-expiry link, rejected calls and NOT_FOUND",
-    "spec": ["§9 Components NoteEditor", "§7 Server Action result", "NOTE-12", "NOTE-15", "D39", "D40", "R5"],
+    "spec": [
+      "§9 Components NoteEditor",
+      "§7 Server Action result",
+      "NOTE-12",
+      "NOTE-15",
+      "D39",
+      "D40",
+      "R5"
+    ],
     "dependsOn": ["M4-save"],
     "acceptance": [
       "~150 KB and ~2 MB of pasted text → \"This note is too large to save (max 100 KB).\" with no Save request in the network log (NOTE-12, D40)",
@@ -434,7 +596,16 @@
     "id": "M4-delete",
     "milestone": "M4",
     "description": "deleteNoteAction and the Delete flow in components/note-editor.tsx; runs the M4 Done-when checks",
-    "spec": ["§9 lib/notes/actions.ts deleteNoteAction", "§9 Components NoteEditor", "NOTE-14", "NOTE-15", "D16", "D38", "D41", "§14 M4 Done when"],
+    "spec": [
+      "§9 lib/notes/actions.ts deleteNoteAction",
+      "§9 Components NoteEditor",
+      "NOTE-14",
+      "NOTE-15",
+      "D16",
+      "D38",
+      "D41",
+      "§14 M4 Done when"
+    ],
     "dependsOn": ["M4-save-errors"],
     "acceptance": [
       "Click \"Delete\" → confirm(\"Delete this note? This can't be undone.\"); Cancel → nothing changes (NOTE-14, D16)",
@@ -456,7 +627,16 @@
     "id": "M5-share-panel",
     "milestone": "M5",
     "description": "enableShareAction, disableShareAction and components/share-panel.tsx mounted on the editor page",
-    "spec": ["§9 lib/notes/actions.ts enableShareAction/disableShareAction", "§9 Components SharePanel", "SHARE-1..SHARE-7", "MSG-1", "NOTE-1", "D6", "D32", "D42"],
+    "spec": [
+      "§9 lib/notes/actions.ts enableShareAction/disableShareAction",
+      "§9 Components SharePanel",
+      "SHARE-1..SHARE-7",
+      "MSG-1",
+      "NOTE-1",
+      "D6",
+      "D32",
+      "D42"
+    ],
     "dependsOn": ["M4-delete"],
     "acceptance": [
       "A private note shows the heading \"Sharing\", \"This note is private.\" and \"Create share link\" (SHARE-1)",
@@ -481,7 +661,17 @@
     "id": "M5-public-page",
     "milestone": "M5",
     "description": "components/note-content.tsx, app/s/[token]/page.tsx, app/s/[token]/not-found.tsx and the next.config.ts security headers; runs the M5 Done-when checks",
-    "spec": ["§9 Components NoteContent", "§9 Rendering and data flow", "§10 Headers", "PUB-1..PUB-5", "NOTE-16", "D7", "D8", "D14", "§14 M5 Done when"],
+    "spec": [
+      "§9 Components NoteContent",
+      "§9 Rendering and data flow",
+      "§10 Headers",
+      "PUB-1..PUB-5",
+      "NOTE-16",
+      "D7",
+      "D8",
+      "D14",
+      "§14 M5 Done when"
+    ],
     "dependsOn": ["M5-share-panel"],
     "acceptance": [
       "/s/{valid token}, signed in or out → 200 with the title as <h1> (or \"Untitled\"), \"Last updated {date}\", the rendered content and the footer \"Shared with TinyNotes\"; no edit controls, owner email/name, note id or user id in the HTML; title \"{title or Untitled} – TinyNotes\" (PUB-1, D8)",
@@ -508,7 +698,14 @@
     "id": "M6-toolbar",
     "milestone": "M6",
     "description": "components/editor-toolbar.tsx mounted in components/note-editor.tsx; runs the M6 Done-when checks",
-    "spec": ["§9 Components EditorToolbar", "NOTE-6", "D4", "D35", "D43", "§14 M6 Done when"],
+    "spec": [
+      "§9 Components EditorToolbar",
+      "NOTE-6",
+      "D4",
+      "D35",
+      "D43",
+      "§14 M6 Done when"
+    ],
     "dependsOn": ["M4-delete"],
     "acceptance": [
       "The toolbar (role=\"toolbar\", aria-label \"Formatting\") has the 12 NOTE-6 buttons with their exact visible labels and aria-labels (NOTE-6, D35)",
@@ -576,7 +773,10 @@
       "Failures follow the Failing checks rule in CLAUDE.md, naming the failing requirement ID",
       "data/ is kept at the end, because M7-checklist-15-24 continues with the same users and notes"
     ],
-    "verify": ["rm -rf data && bun run build && bun run start", "Playwright MCP: §11 steps 1–14"],
+    "verify": [
+      "rm -rf data && bun run build && bun run start",
+      "Playwright MCP: §11 steps 1–14"
+    ],
     "passes": false
   },
   {
@@ -589,7 +789,10 @@
       "With the DB that M7-checklist-1-14 left (don't delete data/), `bun run build && bun run start`, then §11 steps 15–24 pass in order. If ada@example.com or the \"Groceries\" note is missing, recreate them first with steps 2, 8 and 10",
       "Failures follow the Failing checks rule in CLAUDE.md, naming the failing requirement ID"
     ],
-    "verify": ["bun run build && bun run start", "Playwright MCP: §11 steps 15–24"],
+    "verify": [
+      "bun run build && bun run start",
+      "Playwright MCP: §11 steps 15–24"
+    ],
     "passes": false
   },
   {

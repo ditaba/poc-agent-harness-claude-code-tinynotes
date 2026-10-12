@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 TinyNotes is a demo notes app (email/password auth, TipTap rich-text notes, public share links) on Bun + Next.js App Router + `bun:sqlite`. **`SPEC.md` is the source of truth**: decisions (D1…), requirement IDs (AUTH-, NOTE-, SHARE-, PUB-, MSG-, NAV-), exact UI copy, SQL schema, file layout, function signatures, test cases and milestones (M0–M7). Read the relevant SPEC sections before implementing anything, and use its names exactly (routes, files, functions, error codes, UI strings).
 
-Progress is tracked in `prd.json` (tasks with `passes`) and `agent-progress.txt` (what each iteration did). Check both to see what exists instead of assuming. Until the M0 tasks pass, the repo is the plain `create-next-app` scaffold, and `package.json`, `.env.example` and `.gitignore` don't match SPEC §4 yet.
+Progress is tracked in `prd.json` (tasks with `passes`) and `agent-progress.txt` (a `## Codebase patterns` section of reusable learnings, then one short entry per iteration). Check both to see what exists instead of assuming, but they grow large, so Grep by task ID and Read only the matching part instead of the whole file. The same goes for `SPEC.md`: read sections by line range or Grep for an ID. Until the M0 tasks pass, the repo is the plain `create-next-app` scaffold, and `package.json`, `.env.example` and `.gitignore` don't match SPEC §4 yet.
 
-Work is done by the Ralph loop (`ralph.sh`, see `RALPH.md`): each iteration is a fresh `claude -p` session that reads `prd.json`, `agent-progress.txt`, `SPEC.md` and this file, implements one task, sets `passes=true`, appends to `agent-progress.txt`, and commits. `prd.json` is generated from SPEC via `spec-to-prd-prompts.md`.
+Work is done by the Ralph loop (`ralph.sh`, see `RALPH.md`). `ralph.ts` picks the next task and puts its JSON, a SPEC index with line ranges, the SPEC lines for the IDs it names, its milestone and the related progress entries into the prompt. Each iteration is a fresh `claude -p` session that implements that one task, sets `passes=true`, appends to `agent-progress.txt`, and commits. `prd.json` is generated from SPEC via `spec-to-prd-prompts.md`.
 
 ## Ralph task rules
 
@@ -36,7 +36,7 @@ bun test lib/notes -t "TITLE_TOO_LONG"  # filter by test name
 
 - Next.js must run on the Bun runtime (`bun --bun next …`) because `bun:sqlite` only exists there (D28).
 - `dev`/`build`/`start` stop at `db:migrate` if `.env` is missing or invalid (D36). Copy `.env.example` to `.env` with a ≥32-char `BETTER_AUTH_SECRET`.
-- A PostToolUse hook in `.claude/settings.json` runs `bun run format` after every Edit/Write, so don't run Prettier by hand. It fails silently until Prettier is installed in M0. `.prettierignore` skips `*.md` and `.claude/` (D46).
+- A PostToolUse hook in `.claude/settings.json` runs Prettier on the edited file only after every Edit/Write, so don't run Prettier by hand on files you edit. It does nothing until M0 installs Prettier and adds `.prettierignore`. `.prettierignore` skips `*.md` and `.claude/` (D46).
 - `bun test` exits non-zero when no test files exist (M0), so don't treat that as a failure there.
 - There is no automated E2E suite (out of scope), so don't add one. UI acceptance is the SPEC §11 manual checklist, run through the Playwright MCP.
 
@@ -63,4 +63,4 @@ bun test lib/notes -t "TITLE_TOO_LONG"  # filter by test name
 
 ## Library versions
 
-The pinned versions (Next 16.4, React 19.3, better-auth 1.7.7, TipTap 3.31, Tailwind 4.3) may be newer than your training data. Check current docs with the context7 MCP or the `DocsExplorer` agent instead of relying on memory, especially for better-auth error codes and schema, TipTap 3 APIs, and Next 16 conventions.
+The pinned versions (Next 16.4, React 19.3, better-auth 1.7.7, TipTap 3.31, Tailwind 4.3) may be newer than your training data. When you're unsure of an API or a check fails, check current docs instead of guessing: one focused context7 query first, and the `DocsExplorer` agent only if that isn't enough. This matters most for better-auth error codes and schema, TipTap 3 APIs and Next 16 conventions. Record what you learn as a one-line bullet under `## Codebase patterns` in `agent-progress.txt`, so later iterations don't look it up again.

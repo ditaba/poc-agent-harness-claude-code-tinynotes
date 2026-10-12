@@ -63,7 +63,7 @@ Notes are stored as TipTap JSON in SQLite and rendered as HTML. The app runs loc
 | D16 | Delete is confirmed with native `confirm()`. | Confirmed |
 | D17 | "New note" immediately inserts an empty note and redirects to `/notes/{id}`. | Confirmed |
 | D18 | Limits: title ≤ 200 characters (after trim, JS `.length`); content ≤ 100 KB (102 400 bytes, UTF-8 of the normalized JSON string that is stored, see D40). Enforced on the server. | Confirmed |
-| D19 | Pin the latest stable versions, except TypeScript 5.9.3 and ESLint 9.39.5 (TS 7 / ESLint 10 not verified with Next tooling). | Confirmed |
+| D19 | Pin the latest stable versions, except TypeScript 5.9.3 and ESLint 9.39.5 (TS 7 / ESLint 10 not verified with Next tooling). Bun is 1.3.14, because 1.3.12 can't run production builds (R1). | Confirmed |
 | D20 | Testing: `bun test` unit tests for logic + DB layer, plus a manual checklist (run via Playwright MCP). | Confirmed |
 | D21 | Local only: `bun run build && bun run start`. No deadline. | Confirmed |
 | D22 | `/` only redirects: signed in → `/notes`, signed out → `/sign-in`. | Confirmed |
@@ -102,7 +102,7 @@ All versions are pinned exactly in `package.json` (no `^` or `~`).
 
 | Package | Version | Role |
 | ------- | ------- | ---- |
-| Bun (runtime + package manager + test runner) | 1.3.12 | `"packageManager": "bun@1.3.12"` |
+| Bun (runtime + package manager + test runner) | 1.3.14 | `"packageManager": "bun@1.3.14"` |
 | `bun:sqlite` | built into Bun | Database driver |
 | `next` | 16.4.0 | App Router, Server Actions |
 | `react`, `react-dom` | 19.3.0 | UI |
@@ -114,7 +114,7 @@ All versions are pinned exactly in `package.json` (no `^` or `~`).
 | `@tiptap/static-renderer` | 3.31.4 | Server-side JSON → HTML |
 | `tailwindcss`, `@tailwindcss/postcss` | 4.3.3 | Styling |
 | `typescript` (dev) | 5.9.3 | Type checking |
-| `@types/bun` (dev) | 1.3.12 | Bun types |
+| `@types/bun` (dev) | 1.3.14 | Bun types |
 | `@types/node` (dev) | 24.19.2 | Node types (Next requires them) |
 | `@types/react`, `@types/react-dom` (dev) | 19.3.0 | React types |
 | `eslint` (dev) | 9.39.5 | Linting |
@@ -190,8 +190,8 @@ Notation: **Given / input → result**. Quoted strings are exact UI copy. All er
 - **AUTH-1** `/sign-up` shows heading "Create your account", fields "Email" (`type="email"`, required) and "Password" (`type="password"`, required, `minlength=8`, `maxlength=128`, hint "At least 8 characters."), a button "Create account", and the text "Already have an account?" with a link "Sign in" → `/sign-in`.
 - **AUTH-2** A new email and an 8–128 char password, then "Create account" → the user is created with `name = email`, signed in (better-auth `autoSignIn`), and redirected to `/notes`.
 - **AUTH-3** An email that is already registered → the user stays on `/sign-up` and sees "An account with this email already exists." The email field keeps its value; the password field is cleared (D47).
-- **AUTH-4** A password outside 8–128 chars → native validation blocks submit. If it is bypassed, the server's `PASSWORD_TOO_SHORT` / `PASSWORD_TOO_LONG` → "Password must be 8–128 characters."
-- **AUTH-5** An invalid email → native validation blocks submit. If it is bypassed, the server's `INVALID_EMAIL` → "Enter a valid email address."
+- **AUTH-4** A password outside 8–128 chars → native validation blocks submit. If it is bypassed, the server's `PASSWORD_TOO_SHORT` / `PASSWORD_TOO_LONG` (or, for an empty password on sign-up, `VALIDATION_ERROR` on `body.password`, §7) → "Password must be 8–128 characters."
+- **AUTH-5** An invalid email → native validation blocks submit. If it is bypassed, the server's `INVALID_EMAIL` (sign-in) or `VALIDATION_ERROR` on `body.email` (sign-up, §7) → "Enter a valid email address."
 - **AUTH-6** `/sign-in` shows heading "Sign in to TinyNotes", fields "Email" and "Password", a button "Sign in", and the text "No account yet?" with a link "Create one" → `/sign-up`.
 - **AUTH-7** Correct credentials → redirected to `/notes`.
 - **AUTH-8** Wrong password **or** unknown email → "Invalid email or password." The message is identical in both cases. The password field is cleared (D47).
@@ -281,12 +281,12 @@ export const ERROR_MESSAGES: Record<ErrorCode, string>;
 | --------------------------------- | --------- |
 | `INVALID_EMAIL_OR_PASSWORD` | "Invalid email or password." |
 | `USER_ALREADY_EXISTS` or `USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL` | "An account with this email already exists." |
-| `PASSWORD_TOO_SHORT` or `PASSWORD_TOO_LONG` | "Password must be 8–128 characters." |
-| `INVALID_EMAIL` | "Enter a valid email address." |
+| `PASSWORD_TOO_SHORT` or `PASSWORD_TOO_LONG`, or `VALIDATION_ERROR` with message `[body.password] …` | "Password must be 8–128 characters." |
+| `INVALID_EMAIL`, or `VALIDATION_ERROR` with message `[body.email] …` | "Enter a valid email address." |
 | status 429 | "Too many attempts. Please wait a minute and try again." |
 | anything else, or a network error | "Something went wrong. Please try again." |
 
-The exact duplicate-email code must be checked against better-auth 1.7.7's `BASE_ERROR_CODES` during implementation. Both names are mapped either way.
+Verified against better-auth 1.7.7 (M3-auth-errors). Sign-up with an existing email returns `USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL` (422), and both duplicate names are mapped. Sign-up's body schema (`email: z.email()`, `password: z.string().nonempty()`) runs before its handler, so a malformed email or an empty password on sign-up comes back as `VALIDATION_ERROR` (400) with the message `[body.email] Invalid email address` or `[body.password] Too small: …`, never as `INVALID_EMAIL`. Sign-in has no such schema and returns `INVALID_EMAIL` / `INVALID_EMAIL_OR_PASSWORD`. A 429 from the rate limiter has a `message` and no `code` (§12 R10).
 
 ### Page-level errors
 
@@ -490,7 +490,7 @@ export const { GET, POST } = toNextJsHandler(auth); // from "better-auth/next-js
 export const authClient = createAuthClient(); // from "better-auth/react", same origin
 
 // lib/auth-errors.ts
-export function authErrorMessage(error: { code?: string; status?: number } | null): string;
+export function authErrorMessage(error: { code?: string; message?: string; status?: number } | null): string; // message: only for VALIDATION_ERROR (§7)
 
 // lib/session.ts
 export type CurrentUser = { id: string; email: string };

@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd \"$CLAUDE_PROJECT_DIR\" && bun run format 2>/dev/null || true"
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && f=$(bun -e 'const i = await Bun.stdin.json(); console.log(i.tool_input?.file_path ?? \"\")') && [ -n \"$f\" ] && [ -f node_modules/prettier/bin/prettier.cjs ] && [ -f .prettierignore ] && bun node_modules/prettier/bin/prettier.cjs --write --ignore-unknown --log-level silent \"$f\" >/dev/null 2>&1 || true"
           }
         ]
       }
